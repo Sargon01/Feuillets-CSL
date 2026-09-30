@@ -1,0 +1,30 @@
+{
+  "name": "feuillets-csl",
+  "version": "0.1.0",
+  "description": "Adds native CSL citation processing to the Feuillets writing studio. Requires Feuillets.",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "node --import ./test/setup.mjs --test test/*.test.ts"
+  },
+  "keywords": [
+    "obsidian",
+    "obsidian-plugin",
+    "csl",
+    "citations",
+    "feuillets"
+  ],
+  "author": "Halim Yalcin",
+  "license": "AGPL-3.0-or-later",
+  "devDependencies": {
+    "@types/node": "^22.13.1",
+    "esbuild": "^0.25.0",
+    "eslint": "^9.20.0",
+    "obsidian": "^1.7.2",
+    "typescript": "^5.7.3"
+  }
+}
