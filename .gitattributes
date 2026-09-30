@@ -1,0 +1,7 @@
+# Exclude JavaScript support files from GitHub Linguist language statistics.
+test/**/*.js linguist-vendored
+test/**/*.mjs linguist-vendored
+
+# Tooling configuration is not plugin source.
+esbuild.config.mjs linguist-vendored
+eslint.config.mjs linguist-vendored
