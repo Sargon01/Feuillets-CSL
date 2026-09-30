@@ -357,6 +357,8 @@ describe("Plugin Lifecycle & Scenarios", () => {
       path.resolve(__dirname, "../src/citation-provider.ts"),
       path.resolve(__dirname, "../src/feuillets-api.ts"),
       path.resolve(__dirname, "../src/feuillets-api-types.ts"),
+      path.resolve(__dirname, "../src/engine-contract.ts"),
+      path.resolve(__dirname, "../src/engine-validation.ts"),
     ];
 
     for (const file of sourceFiles) {

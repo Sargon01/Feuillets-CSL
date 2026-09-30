@@ -2,8 +2,8 @@
 
 An optional companion plugin for [Feuillets](https://github.com/Sargon01) that adds native Citation Style Language (CSL) citation processing.
 
-> **Status:** Under active development (Lot 2: Companion Skeleton & Bridge).
-> This repository does not yet include the CSL processing engine.
+> **Status:** Under active development (Lot 3 — Engine contract).
+> The documentary contract is now defined. This repository does not yet include a CSL processing engine, and no CSL styles are rendered yet.
 
 ## Overview
 
@@ -14,18 +14,19 @@ Feuillets CSL connects to the Feuillets writing studio through its public citati
 - **100% Local & Offline:** The plugin operates entirely locally. No network connections, telemetry, or remote requests are made now or in future releases.
 - **Autonomous & Resilient:** Handles asynchronous plugin loading and automatic re-registration if Feuillets is reloaded.
 
-## Current Scope (Lot 2)
+## Current Scope (Lot 3)
 
-Lot 2 establishes the autonomous plugin architecture and handshake protocol:
+Lot 3 establishes the pure documentary engine contract and validation layer:
 
-- Obsidian plugin lifecycle management (`onload`, `onunload`).
-- Safe runtime discovery and validation of Feuillets' `plugin.api.citations` (API v1).
-- Minimal provider registration under id `feuillets-csl`.
-- Idempotent periodic heartbeat for seamless re-registration upon Feuillets reload.
-- Clean unregistration on unload with guardrails preventing stale instances from unregistering newer providers.
+- Formal document citation request and result contracts (`CitationDocumentRequest`, `CitationDocumentResult`).
+- Pure data exchange: Feuillets resolves files and parses syntax; Feuillets CSL receives structured clusters and raw sources.
+- Safe, HTML-free rendering AST (`CitationRenderNode`) guaranteeing zero raw HTML output.
+- Strict preservation of documentary citation order.
+- Runtime validation (`validateCitationDocumentRequest`) rejecting invalid inputs without silent normalization.
+- Companion provider remains minimal (`FeuilletsCslProvider`, API v1) with zero engine methods exposed on the provider.
 - Zero runtime dependencies, zero CSL parsing/rendering code, zero network access.
 
-Future lots will introduce the local CSL processor and bibliography generator.
+Future lots will integrate the local CSL processor and bibliography generator.
 
 ## Development
 
