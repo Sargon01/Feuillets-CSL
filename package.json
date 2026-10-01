@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:obsidian": "eslint --max-warnings 0 --config obsidian-review.config.mjs main.ts src",
+    "audit:network": "node scripts/audit-network.mjs",
+    "probe:engine": "node scripts/build-engine-probe.mjs",
     "test": "node --import ./test/setup.mjs --test test/*.test.ts"
   },
   "keywords": [
@@ -29,5 +31,9 @@
     "eslint-plugin-obsidianmd": "^0.4.2",
     "obsidian": "^1.7.2",
     "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@retorquere/bibtex-parser": "11.0.0",
+    "citeproc-ts": "0.2.5"
   }
 }

@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8"?>
+<locale xmlns="http://purl.org/net/xbiblio/csl" version="1.0" xml:lang="en-US">
+  <info>
+    <translator>
+      <name>CSL Project</name>
+    </translator>
+    <rights license="http://creativecommons.org/licenses/by-sa/3.0/">This work is licensed under a Creative Commons Attribution-ShareAlike 3.0 License</rights>
+    <updated>2012-07-04T23:31:02+00:00</updated>
+  </info>
+  <style-options punctuation-in-quote="true"/>
+  <date form="text">
+    <date-part name="month" suffix=" "/>
+    <date-part name="day" suffix=", "/>
+    <date-part name="year"/>
+  </date>
+  <date form="numeric">
+    <date-part name="month" form="numeric" suffix="/"/>
+    <date-part name="day" form="numeric" suffix="/"/>
+    <date-part name="year"/>
+  </date>
+  <terms>
+    <term name="accessed">accessed</term>
+    <term name="and">and</term>
+    <term name="and others">and others</term>
+    <term name="anonymous">anonymous</term>
+    <term name="anonymous" form="short">anon.</term>
+    <term name="at">at</term>
+    <term name="available at">available at</term>
+    <term name="by">by</term>
+    <term name="circa">circa</term>
+    <term name="circa" form="short">c.</term>
+    <term name="cited">cited</term>
+    <term name="edition">
+      <single>edition</single>
+      <multiple>editions</multiple>
+    </term>
+    <term name="edition" form="short">ed.</term>
+    <term name="et-al">et al.</term>
+    <term name="from">from</term>
+    <term name="ibid">ibid.</term>
+    <term name="in">in</term>
+    <term name="in press">in press</term>
+    <term name="internet">internet</term>
+    <term name="interview">interview</term>
+    <term name="letter">letter</term>
+    <term name="no date">no date</term>
+    <term name="no date" form="short">n.d.</term>
+    <term name="online">online</term>
+    <term name="presented at">presented at</term>
+    <term name="retrieved">retrieved</term>
+    <term name="scale">scale</term>
+    <term name="version">version</term>
+
+    <!-- LOCATORS -->
+    <term name="book">
+      <single>book</single>
+      <multiple>books</multiple>
+    </term>
+    <term name="book" form="short">bk.</term>
+    <term name="chapter">
+      <single>chapter</single>
+      <multiple>chapters</multiple>
+    </term>
+    <term name="chapter" form="short">ch.</term>
+    <term name="column">
+      <single>column</single>
+      <multiple>columns</multiple>
+    </term>
+    <term name="column" form="short">col.</term>
+    <term name="figure">
+      <single>figure</single>
+      <multiple>figures</multiple>
+    </term>
+    <term name="figure" form="short">fig.</term>
+    <term name="folio">
+      <single>folio</single>
+      <multiple>folios</multiple>
+    </term>
+    <term name="folio" form="short">fol.</term>
+    <term name="issue">
+      <single>number</single>
+      <multiple>numbers</multiple>
+    </term>
+    <term name="issue" form="short">no.</term>
+    <term name="line">
+      <single>line</single>
+      <multiple>lines</multiple>
+    </term>
+    <term name="line" form="short">l.</term>
+    <term name="note">
+      <single>note</single>
+      <multiple>notes</multiple>
+    </term>
+    <term name="note" form="short">n.</term>
+    <term name="opus">
+      <single>opus</single>
+      <multiple>opera</multiple>
+    </term>
+    <term name="opus" form="short">op.</term>
+    <term name="page">
+      <single>page</single>
+      <multiple>pages</multiple>
+    </term>
+    <term name="page" form="short">
+      <single>p.</single>
+      <multiple>pp.</multiple>
+    </term>
+    <term name="paragraph">
+      <single>paragraph</single>
+      <multiple>paragraphs</multiple>
+    </term>
+    <term name="paragraph" form="short">para.</term>
+    <term name="part">
+      <single>part</single>
+      <multiple>parts</multiple>
+    </term>
+    <term name="part" form="short">pt.</term>
+    <term name="section">
+      <single>section</single>
+      <multiple>sections</multiple>
+    </term>
+    <term name="section" form="short">sec.</term>
+    <term name="sub verbo">
+      <single>sub verbo</single>
+      <multiple>sub verbis</multiple>
+    </term>
+    <term name="sub verbo" form="short">s.v.</term>
+    <term name="verse">
+      <single>verse</single>
+      <multiple>verses</multiple>
+    </term>
+    <term name="verse" form="short">v.</term>
+    <term name="volume">
+      <single>volume</single>
+      <multiple>volumes</multiple>
+    </term>
+    <term name="volume" form="short">vol.</term>
+
+    <!-- CREATOR ROLES -->
+    <term name="author">
+      <single/>
+      <multiple/>
+    </term>
+    <term name="editor">
+      <single>editor</single>
+      <multiple>editors</multiple>
+    </term>
+    <term name="editor" form="short">
+      <single>ed.</single>
+      <multiple>eds.</multiple>
+    </term>
+    <term name="editorial-director">
+      <single>editor</single>
+      <multiple>editors</multiple>
+    </term>
+    <term name="editorial-director" form="short">
+      <single>ed.</single>
+      <multiple>eds.</multiple>
+    </term>
+    <term name="translator">
+      <single>translator</single>
+      <multiple>translators</multiple>
+    </term>
+    <term name="translator" form="short">
+      <single>trans.</single>
+      <multiple>trans.</multiple>
+    </term>
+    <term name="editortranslator">
+      <single>editor &amp; translator</single>
+      <multiple>editors &amp; translators</multiple>
+    </term>
+    <term name="editortranslator" form="short">
+      <single>ed. &amp; trans.</single>
+      <multiple>eds. &amp; trans.</multiple>
+    </term>
+  </terms>
+</locale>

@@ -319,16 +319,16 @@ describe("Plugin Lifecycle & Scenarios", () => {
     assert.equal(registryState.providers.get(PROVIDER_ID), newerProvider);
   });
 
-  it("verifies package.json has 0 runtime dependencies", () => {
+  it("verifies package.json has strictly and only the 2 authorized runtime dependencies", () => {
     const pkgPath = path.resolve(__dirname, "../package.json");
     const pkgRaw = fs.readFileSync(pkgPath, "utf-8");
     const pkg = JSON.parse(pkgRaw) as Record<string, unknown>;
 
-    assert.equal(
-      pkg["dependencies"] === undefined || Object.keys(pkg["dependencies"] as object).length === 0,
-      true,
-      "package.json must not declare any runtime dependencies"
-    );
+    const deps = (pkg["dependencies"] ?? {}) as Record<string, string>;
+    assert.deepEqual(deps, {
+      "@retorquere/bibtex-parser": "11.0.0",
+      "citeproc-ts": "0.2.5",
+    });
   });
 
   it("verifies 0 network dependencies and 0 network usage in source and bundle", () => {

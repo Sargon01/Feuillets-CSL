@@ -1,6 +1,6 @@
 export default [
   {
-    ignores: ["node_modules/**", "main.js", "dist/**"],
+    ignores: ["node_modules/**", "main.js", "dist/**", ".engine-audit/**"],
   },
   {
     files: ["**/*.js", "**/*.mjs"],
