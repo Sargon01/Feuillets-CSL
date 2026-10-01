@@ -38,6 +38,6 @@ Feuillets CSL incorporates or links against open-source software libraries. This
 - **Copyright**: Copyright (c) Citation Style Language contributors / translators (CSL Project, Nicolas Dufourceaud).
 
 ### B. CSL Style Fixtures
-- **Files**: `test/fixtures/styles/author-date.csl`, `test/fixtures/styles/numeric.csl`, `test/fixtures/styles/note.csl`
-- **Provenance**: Minimal test fixtures created specifically for the Feuillets CSL test suite to validate CSL engine integration across in-text (author-date), numeric, and note style classes.
+- **Files**: `test/fixtures/styles/author-date.csl`, `test/fixtures/styles/numeric.csl`, `test/fixtures/styles/note.csl`, `test/fixtures/styles/note-positions.csl`
+- **Provenance**: Minimal test fixtures created specifically for the Feuillets CSL test suite to validate CSL engine integration across in-text (author-date), numeric, note, and contextual note position style classes.
 - **Notice**: These are project-internal test fixtures authored for this repository, not copies of official third-party styles. They are distributed under the project's repository license (AGPL-3.0-or-later).

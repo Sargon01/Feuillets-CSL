@@ -12,6 +12,7 @@
     "lint:obsidian": "eslint --max-warnings 0 --config obsidian-review.config.mjs main.ts src",
     "audit:network": "node scripts/audit-network.mjs",
     "probe:engine": "node scripts/build-engine-probe.mjs",
+    "benchmark:engine": "node scripts/benchmark-engine.mjs",
     "test": "node --import ./test/setup.mjs --test test/*.test.ts"
   },
   "keywords": [

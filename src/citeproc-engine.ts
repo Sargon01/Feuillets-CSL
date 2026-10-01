@@ -1,20 +1,20 @@
 /**
- * Feuillets CSL — Core Citeproc Document Engine (Lot 4)
+ * Feuillets CSL — Stateful Document Engine (Lot 5)
  *
- * Implements CitationDocumentEngine using citeproc-ts in a stateless,
- * safe-text execution model.
- *
- * Invariants:
- * - One document request = one isolated citeproc evaluation context.
- * - Clusters processed in exact array order; retroactive updates applied automatically.
- * - Unknown citekeys, invalid style, or unavailable locale trigger fail-closed diagnostics.
- * - Safe text rendering (no raw HTML).
+ * Implements CitationDocumentEngine using citeproc-ts with:
+ * - Persistent, isolated document sessions.
+ * - Append-only incremental fast path and automated full rebuild on non-safe changes.
+ * - Invalidation on style, bibliography, or locale changes.
+ * - Rich formatting converted to safe CitationRenderNode AST (zero raw HTML).
+ * - Full disposeDocument() and dispose() lifecycle cleanup.
+ * - Deterministic fail-closed error handling (REVISION_CONFLICT, STALE_REVISION, etc.).
  * - Zero `any`.
  */
 
 import { CSL } from "citeproc-ts";
 import type {
   BibliographyLayout,
+  CitationBibliographySource,
   CitationClusterInput,
   CitationDocumentEngine,
   CitationDocumentRequest,
@@ -26,78 +26,88 @@ import type {
 } from "./engine-contract.ts";
 import { validateCitationDocumentRequest } from "./engine-validation.ts";
 import { adaptBibliographies } from "./bibtex-adapter.ts";
-import type { CslItem } from "./bibtex-adapter.ts";
+import type { BibtexAdapterResult, CslItem } from "./bibtex-adapter.ts";
+import {
+  DocumentSessionManager,
+  computeResourceSignature,
+  computeClusterSignatures,
+  isAppendOnly,
+  cloneResult,
+} from "./citeproc-session.ts";
+import type {
+  CiteprocEngineInstance,
+  CiteprocCitationCluster,
+  CiteprocCitationItem,
+  CiteprocProperties,
+} from "./citeproc-session.ts";
+import { convertCiteprocHtmlToNodes } from "./citeproc-markup.ts";
 
 export interface CslLocaleProvider {
   retrieveLocale(language: string): string | null;
 }
 
-interface CiteprocReturnData {
-  bibchange?: boolean;
-  citation_errors?: unknown[];
+export interface CiteprocSys {
+  retrieveLocale: (lang: string) => string | boolean;
+  retrieveItem: (id: string) => CslItem | null;
 }
 
-type CiteprocUpdate = [number, string, string];
+export type CiteprocEngineFactory = (
+  sys: CiteprocSys,
+  styleXml: string,
+  locale: string
+) => CiteprocEngineInstance;
 
-interface CiteprocCitationItem {
-  id: string;
-  prefix?: string;
-  suffix?: string;
-  locator?: string;
-  label?: string;
-  "suppress-author"?: boolean;
-  "author-only"?: boolean;
-}
-
-interface CiteprocProperties {
-  noteIndex?: number;
-  mode?: string;
-}
-
-interface CiteprocCitationCluster {
-  citationID: string;
-  citationItems: CiteprocCitationItem[];
-  properties: CiteprocProperties;
-}
-
-interface CiteprocBibliographyMeta {
-  maxoffset?: number;
-  entryspacing?: number;
-  linespacing?: number;
-  hangingindent?: boolean;
-  "second-field-align"?: false | "flush" | "margin";
-  entry_ids?: string[][];
-  bibliography_errors?: unknown[];
-}
-
-interface CiteprocEngineInstance {
-  setOutputFormat(format: string): void;
-  updateItems(ids: string[]): void;
-  processCitationCluster(
-    citation: CiteprocCitationCluster,
-    citationsPre: [string, number][],
-    citationsPost: [string, number][]
-  ): [CiteprocReturnData, CiteprocUpdate[]];
-  makeBibliography(): [CiteprocBibliographyMeta, string[]] | false;
-}
+export type BibtexAdapterFn = (
+  sources: CitationBibliographySource[]
+) => BibtexAdapterResult;
 
 interface CslModule {
   Engine: new (
-    sys: {
-      retrieveLocale: (lang: string) => string | boolean;
-      retrieveItem: (id: string) => CslItem | null;
-    },
+    sys: CiteprocSys,
     style: string,
     lang?: string,
     forceLang?: boolean
   ) => CiteprocEngineInstance;
 }
 
+function defaultEngineFactory(
+  sys: CiteprocSys,
+  styleXml: string,
+  locale: string
+): CiteprocEngineInstance {
+  const EngineConstructor = (CSL as CslModule).Engine;
+  return new EngineConstructor(sys, styleXml, locale);
+}
+
+/**
+ * Computes a deterministic cache key for the ordered set of bibliography sources.
+ *
+ * Invariant: Key is based solely on ordered tuples of [id, version, format].
+ * Content is not hashed. Order is strictly preserved.
+ */
+export function computeBibCacheKey(
+  bibliographies: readonly CitationBibliographySource[]
+): string {
+  return JSON.stringify(bibliographies.map((b) => [b.id, b.version, b.format]));
+}
+
 export class CiteprocDocumentEngine implements CitationDocumentEngine {
   private readonly localeProvider: CslLocaleProvider;
+  private readonly sessionManager: DocumentSessionManager;
+  private readonly bibCache: Map<string, BibtexAdapterResult>;
+  private readonly engineFactory: CiteprocEngineFactory;
+  private readonly bibAdapter: BibtexAdapterFn;
 
-  constructor(localeProvider: CslLocaleProvider) {
+  constructor(
+    localeProvider: CslLocaleProvider,
+    engineFactory?: CiteprocEngineFactory,
+    bibAdapter?: BibtexAdapterFn
+  ) {
     this.localeProvider = localeProvider;
+    this.sessionManager = new DocumentSessionManager();
+    this.bibCache = new Map<string, BibtexAdapterResult>();
+    this.engineFactory = engineFactory ?? defaultEngineFactory;
+    this.bibAdapter = bibAdapter ?? adaptBibliographies;
   }
 
   async renderDocument(
@@ -136,8 +146,82 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
       };
     }
 
-    // 2. Parse and adapt bibliography sources
-    const adapterResult = adaptBibliographies(request.bibliographies);
+    const documentId = request.documentId;
+    const existingSession = this.sessionManager.getSession(documentId);
+    const newResourceSignature = computeResourceSignature(request);
+    const newClusterSignatures = computeClusterSignatures(request.clusters);
+
+    // 2. Check session revision constraints
+    if (existingSession) {
+      // 2A. Stale revision: request.revision < session.revision -> fail closed
+      if (request.revision < existingSession.revision) {
+        return {
+          documentId,
+          revision: request.revision,
+          citations: [],
+          bibliography: null,
+          diagnostics: [
+            {
+              code: "STALE_REVISION",
+              severity: "error",
+              message: `Request revision ${request.revision} is older than current session revision ${existingSession.revision}.`,
+            },
+          ],
+        };
+      }
+
+      // 2B. Same revision check: request.revision === session.revision
+      if (request.revision === existingSession.revision) {
+        const resourcesMatch =
+          newResourceSignature === existingSession.resourceSignature;
+        const clustersMatch =
+          newClusterSignatures.length === existingSession.clusterSignatures.length &&
+          newClusterSignatures.every(
+            (sig, i) => sig === existingSession.clusterSignatures[i]
+          );
+
+        if (resourcesMatch && clustersMatch && existingSession.lastResult) {
+          const cachedBibPresent =
+            existingSession.lastResult.bibliography !== null;
+          // If includeBibliography flag is identical, return cached result
+          if (request.includeBibliography === cachedBibPresent) {
+            return cloneResult(existingSession.lastResult);
+          }
+          // If only includeBibliography changed on identical revision, re-generate bibliography
+          // without rebuilding citation state
+          return this.recomputeBibliographyOnly(
+            existingSession,
+            request,
+            newResourceSignature,
+            newClusterSignatures
+          );
+        }
+
+        // Same revision with different content represents a revision conflict -> fail closed
+        return {
+          documentId,
+          revision: request.revision,
+          citations: [],
+          bibliography: null,
+          diagnostics: [
+            {
+              code: "REVISION_CONFLICT",
+              severity: "error",
+              message: `Revision conflict: revision ${request.revision} was already rendered with different document content or resources.`,
+            },
+          ],
+        };
+      }
+    }
+
+    // 3. Parse and adapt bibliography sources (with cache on ordered set)
+    const bibCacheKey = computeBibCacheKey(request.bibliographies);
+    let adapterResult = this.bibCache.get(bibCacheKey);
+    if (!adapterResult) {
+      adapterResult = this.bibAdapter(request.bibliographies);
+      this.bibCache.set(bibCacheKey, adapterResult);
+    }
+
     const allDiagnostics: CitationEngineDiagnostic[] = [
       ...adapterResult.diagnostics,
     ];
@@ -145,7 +229,7 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
     const hasFatalBibError = allDiagnostics.some((d) => d.severity === "error");
     if (hasFatalBibError) {
       return {
-        documentId: request.documentId,
+        documentId,
         revision: request.revision,
         citations: [],
         bibliography: null,
@@ -153,7 +237,7 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
       };
     }
 
-    // 3. Verify all cluster citekeys exist
+    // 4. Verify all cluster citekeys exist
     let hasMissingCitekey = false;
     for (const cluster of request.clusters) {
       for (const item of cluster.items) {
@@ -172,7 +256,7 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
 
     if (hasMissingCitekey) {
       return {
-        documentId: request.documentId,
+        documentId,
         revision: request.revision,
         citations: [],
         bibliography: null,
@@ -180,7 +264,7 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
       };
     }
 
-    // 4. Verify requested locale
+    // 5. Verify requested locale
     const targetLocale = request.locale ? request.locale.trim() : "en-US";
     const primaryLocaleXml = this.localeProvider.retrieveLocale(targetLocale);
     if (!primaryLocaleXml) {
@@ -190,7 +274,7 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
         message: `Requested CSL locale '${targetLocale}' is unavailable.`,
       });
       return {
-        documentId: request.documentId,
+        documentId,
         revision: request.revision,
         citations: [],
         bibliography: null,
@@ -198,58 +282,88 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
       };
     }
 
-    // 5. Instantiate fresh citeproc engine
-    const sys = {
-      retrieveLocale: (lang: string): string | boolean => {
-        const loc = this.localeProvider.retrieveLocale(lang);
-        return loc !== null && loc.trim().length > 0 ? loc : false;
-      },
-      retrieveItem: (id: string): CslItem | null => {
-        return adapterResult.items.get(id) ?? null;
-      },
-    };
+    // 6. Check if append-only incremental execution is valid
+    const canAppendOnly =
+      existingSession !== undefined &&
+      newResourceSignature === existingSession.resourceSignature &&
+      isAppendOnly(existingSession.clusterSignatures, newClusterSignatures);
 
     let engine: CiteprocEngineInstance;
-    try {
-      const EngineConstructor = (CSL as CslModule).Engine;
-      engine = new EngineConstructor(sys, request.style.xml, targetLocale);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      allDiagnostics.push({
-        code: "CSL_STYLE_ERROR",
-        severity: "error",
-        message: `CSL style parsing failed: ${msg}`,
-      });
-      return {
-        documentId: request.documentId,
-        revision: request.revision,
-        citations: [],
-        bibliography: null,
-        diagnostics: allDiagnostics,
-      };
-    }
+    let citationsPre: [string, number][];
+    let clusterRenderings: Map<string, string>;
+    let startIndex = 0;
 
-    // 6. Configure text output mode
-    engine.setOutputFormat("text");
+    if (canAppendOnly) {
+      // Re-use active session engine
+      engine = existingSession.engine;
+      citationsPre = existingSession.citationsPre;
+      clusterRenderings = existingSession.clusterRenderings;
+      startIndex = existingSession.clusterSignatures.length;
 
-    // 7. Register cited items
-    const citedIds: string[] = [];
-    const seenCitedIds = new Set<string>();
-    for (const cluster of request.clusters) {
-      for (const item of cluster.items) {
-        if (!seenCitedIds.has(item.id)) {
-          seenCitedIds.add(item.id);
-          citedIds.push(item.id);
+      // Update citeproc item registration with any new items
+      const citedIds: string[] = [];
+      const seenCitedIds = new Set<string>();
+      for (const cluster of request.clusters) {
+        for (const item of cluster.items) {
+          if (!seenCitedIds.has(item.id)) {
+            seenCitedIds.add(item.id);
+            citedIds.push(item.id);
+          }
         }
       }
+      engine.updateItems(citedIds);
+    } else {
+      // Full rebuild: create fresh CSL Engine instance
+      const sys: CiteprocSys = {
+        retrieveLocale: (lang: string): string | boolean => {
+          const loc = this.localeProvider.retrieveLocale(lang);
+          return loc !== null && loc.trim().length > 0 ? loc : false;
+        },
+        retrieveItem: (id: string): CslItem | null => {
+          return adapterResult.items.get(id) ?? null;
+        },
+      };
+
+      try {
+        engine = this.engineFactory(sys, request.style.xml, targetLocale);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        allDiagnostics.push({
+          code: "CSL_STYLE_ERROR",
+          severity: "error",
+          message: `CSL style parsing failed: ${msg}`,
+        });
+        return {
+          documentId,
+          revision: request.revision,
+          citations: [],
+          bibliography: null,
+          diagnostics: allDiagnostics,
+        };
+      }
+
+      engine.setOutputFormat("html");
+
+      const citedIds: string[] = [];
+      const seenCitedIds = new Set<string>();
+      for (const cluster of request.clusters) {
+        for (const item of cluster.items) {
+          if (!seenCitedIds.has(item.id)) {
+            seenCitedIds.add(item.id);
+            citedIds.push(item.id);
+          }
+        }
+      }
+      engine.updateItems(citedIds);
+
+      citationsPre = [];
+      clusterRenderings = new Map<string, string>();
+      startIndex = 0;
     }
-    engine.updateItems(citedIds);
 
-    // 8. Process clusters in strict documentary order, tracking retroactive updates
-    const clusterRenderings = new Map<string, string>();
-    const citationsPre: [string, number][] = [];
-
-    for (const cluster of request.clusters) {
+    // 7. Process clusters from startIndex to end, capturing updates
+    for (let i = startIndex; i < request.clusters.length; i++) {
+      const cluster = request.clusters[i];
       const citeprocItems: CiteprocCitationItem[] = cluster.items.map((it) => {
         const mapped: CiteprocCitationItem = {
           id: it.id,
@@ -299,7 +413,7 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
           message: `Error processing citation cluster '${cluster.id}': ${msg}`,
         });
         return {
-          documentId: request.documentId,
+          documentId,
           revision: request.revision,
           citations: [],
           bibliography: null,
@@ -310,24 +424,23 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
       citationsPre.push([cluster.id, cluster.noteIndex ?? 0]);
     }
 
-    // 9. Construct final rendered citations preserving original cluster order
+    // 8. Convert HTML renderings into safe CitationRenderNode ASTs
     const renderedCitations: RenderedCitation[] = request.clusters.map(
       (cluster: CitationClusterInput) => {
-        const plainText = clusterRenderings.get(cluster.id) ?? "";
+        const rawHtml = clusterRenderings.get(cluster.id) ?? "";
+        const converted = convertCiteprocHtmlToNodes(rawHtml);
+        for (const diag of converted.diagnostics) {
+          allDiagnostics.push(diag);
+        }
         return {
           clusterId: cluster.id,
-          plainText,
-          content: [
-            {
-              type: "text",
-              text: plainText,
-            },
-          ],
+          plainText: converted.plainText,
+          content: converted.nodes,
         };
       }
     );
 
-    // 10. Generate bibliography if requested
+    // 9. Generate bibliography if requested
     let bibliography: RenderedBibliography | null = null;
     if (request.includeBibliography) {
       try {
@@ -338,18 +451,19 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
           const entries: RenderedBibliographyEntry[] = [];
 
           for (let i = 0; i < entryStrings.length; i++) {
-            const rawText = entryStrings[i].replace(/\r?\n$/, "");
+            const rawEntryHtml = entryStrings[i];
+            const converted = convertCiteprocHtmlToNodes(rawEntryHtml);
+            for (const diag of converted.diagnostics) {
+              allDiagnostics.push(diag);
+            }
+
             const itemIds =
               meta.entry_ids && meta.entry_ids[i] ? meta.entry_ids[i] : [];
+
             entries.push({
               itemIds,
-              plainText: rawText,
-              content: [
-                {
-                  type: "text",
-                  text: rawText,
-                },
-              ],
+              plainText: converted.plainText,
+              content: converted.nodes,
             });
           }
 
@@ -390,7 +504,7 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
           message: `Error generating bibliography: ${msg}`,
         });
         return {
-          documentId: request.documentId,
+          documentId,
           revision: request.revision,
           citations: [],
           bibliography: null,
@@ -399,20 +513,129 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
       }
     }
 
-    return {
-      documentId: request.documentId,
+    const finalResult: CitationDocumentResult = {
+      documentId,
       revision: request.revision,
       citations: renderedCitations,
       bibliography,
       diagnostics: allDiagnostics,
     };
+
+    // 10. Update session state
+    this.sessionManager.setSession(documentId, {
+      documentId,
+      revision: request.revision,
+      resourceSignature: newResourceSignature,
+      clusterSignatures: newClusterSignatures,
+      engine,
+      citationsPre,
+      clusterRenderings,
+      lastResult: finalResult,
+    });
+
+    return cloneResult(finalResult);
   }
 
-  disposeDocument(_documentId: string): void {
-    // Stateless in Lot 4; no-op
+  private recomputeBibliographyOnly(
+    session: {
+      documentId: string;
+      revision: number;
+      resourceSignature: string;
+      clusterSignatures: string[];
+      engine: CiteprocEngineInstance;
+      citationsPre: [string, number][];
+      clusterRenderings: Map<string, string>;
+      lastResult?: CitationDocumentResult;
+    },
+    request: CitationDocumentRequest,
+    resourceSignature: string,
+    clusterSignatures: string[]
+  ): CitationDocumentResult {
+    let bibliography: RenderedBibliography | null = null;
+    const allDiagnostics: CitationEngineDiagnostic[] = session.lastResult
+      ? [...session.lastResult.diagnostics]
+      : [];
+
+    if (request.includeBibliography) {
+      try {
+        const bibRes = session.engine.makeBibliography();
+        if (bibRes) {
+          const meta = bibRes[0];
+          const entryStrings = bibRes[1];
+          const entries: RenderedBibliographyEntry[] = [];
+
+          for (let i = 0; i < entryStrings.length; i++) {
+            const rawEntryHtml = entryStrings[i];
+            const converted = convertCiteprocHtmlToNodes(rawEntryHtml);
+            for (const diag of converted.diagnostics) {
+              allDiagnostics.push(diag);
+            }
+
+            const itemIds =
+              meta.entry_ids && meta.entry_ids[i] ? meta.entry_ids[i] : [];
+
+            entries.push({
+              itemIds,
+              plainText: converted.plainText,
+              content: converted.nodes,
+            });
+          }
+
+          const layout: BibliographyLayout = {
+            hangingIndent: Boolean(meta.hangingindent),
+            entrySpacing:
+              typeof meta.entryspacing === "number" ? meta.entryspacing : 1,
+            lineSpacing:
+              typeof meta.linespacing === "number" ? meta.linespacing : 1,
+            secondFieldAlign:
+              meta["second-field-align"] === "flush" ||
+              meta["second-field-align"] === "margin"
+                ? meta["second-field-align"]
+                : undefined,
+            maxOffset:
+              typeof meta.maxoffset === "number" ? meta.maxoffset : undefined,
+          };
+
+          bibliography = { entries, layout };
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        allDiagnostics.push({
+          code: "CSL_PROCESSING_ERROR",
+          severity: "error",
+          message: `Error generating bibliography: ${msg}`,
+        });
+      }
+    }
+
+    const updatedResult: CitationDocumentResult = {
+      documentId: request.documentId,
+      revision: request.revision,
+      citations: session.lastResult ? session.lastResult.citations : [],
+      bibliography,
+      diagnostics: allDiagnostics,
+    };
+
+    session.lastResult = updatedResult;
+    this.sessionManager.setSession(request.documentId, {
+      ...session,
+      resourceSignature,
+      clusterSignatures,
+    });
+
+    return cloneResult(updatedResult);
+  }
+
+  getBibCacheSize(): number {
+    return this.bibCache.size;
+  }
+
+  disposeDocument(documentId: string): void {
+    this.sessionManager.disposeDocument(documentId);
   }
 
   dispose(): void {
-    // Stateless in Lot 4; no-op
+    this.sessionManager.dispose();
+    this.bibCache.clear();
   }
 }

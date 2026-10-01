@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" class="note" version="1.0">
+  <info>
+    <title>Feuillets CSL Test - Note Positions</title>
+    <id>feuillets-csl-test-note-positions</id>
+    <updated>2026-10-01T00:00:00Z</updated>
+  </info>
+  <citation>
+    <layout delimiter="; ">
+      <choose>
+        <if position="ibid-with-locator">
+          <group delimiter=", ">
+            <text term="ibid"/>
+            <text variable="locator" prefix="p. "/>
+          </group>
+        </if>
+        <else-if position="ibid">
+          <text term="ibid"/>
+        </else-if>
+        <else-if position="subsequent">
+          <group delimiter=", ">
+            <names variable="author"><name form="short"/></names>
+            <text variable="title" form="short"/>
+            <text variable="locator" prefix="p. "/>
+          </group>
+        </else-if>
+        <else>
+          <group delimiter=", ">
+            <names variable="author"><name/></names>
+            <text variable="title" font-style="italic"/>
+            <text variable="locator" prefix="p. "/>
+          </group>
+        </else>
+      </choose>
+    </layout>
+  </citation>
+  <bibliography>
+    <layout>
+      <group delimiter=". ">
+        <names variable="author"><name/></names>
+        <text variable="title" font-style="italic"/>
+      </group>
+    </layout>
+  </bibliography>
+</style>

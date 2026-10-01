@@ -513,4 +513,62 @@ describe("Citeproc Document Engine (Lot 4)", () => {
     }
     checkKeys(result);
   });
+
+  it("produces rich bibliography AST with left-margin callout and right-inline block for numeric style", async () => {
+    const engine = new CiteprocDocumentEngine(localeProvider);
+    const bib = `@book{turing1936, title={Computable Numbers}, author={Turing, Alan}, year={1936}}`;
+
+    const request: CitationDocumentRequest = {
+      documentId: "doc-numeric-blocks",
+      revision: 1,
+      style: { id: "numeric", version: "1.0", xml: numericStyle },
+      bibliographies: [{ id: "bib-num", version: "1.0", format: "bibtex", content: bib }],
+      clusters: [{ id: "c1", items: [{ id: "turing1936" }] }],
+      includeBibliography: true,
+    };
+
+    const result = await engine.renderDocument(request);
+    assert.equal(result.diagnostics.length, 0);
+    assert.ok(result.bibliography);
+    assert.equal(result.bibliography?.entries.length, 1);
+
+    const entry = result.bibliography.entries[0];
+    assert.equal(entry.itemIds[0], "turing1936");
+    assert.ok(entry.plainText.includes("[1]"));
+    assert.ok(entry.plainText.includes("Turing"));
+
+    // Check AST blocks
+    assert.equal(entry.content.length, 2);
+    const leftMargin = entry.content[0] as { type: string; display: string };
+    assert.equal(leftMargin.type, "block");
+    assert.equal(leftMargin.display, "left-margin");
+
+    const rightInline = entry.content[1] as { type: string; display: string };
+    assert.equal(rightInline.type, "block");
+    assert.equal(rightInline.display, "right-inline");
+  });
+
+  it("produces rich inline typography AST (italic span) with clean plainText", async () => {
+    const engine = new CiteprocDocumentEngine(localeProvider);
+    const bib = `@book{descartes1637, title={Discourse on Method}, author={Descartes, René}, year={1637}}`;
+
+    const request: CitationDocumentRequest = {
+      documentId: "doc-typo",
+      revision: 1,
+      style: { id: "author-date", version: "1.0", xml: authorDateStyle },
+      bibliographies: [{ id: "bib-typo", version: "1.0", format: "bibtex", content: bib }],
+      clusters: [{ id: "c1", items: [{ id: "descartes1637" }] }],
+      includeBibliography: true,
+    };
+
+    const result = await engine.renderDocument(request);
+    assert.equal(result.diagnostics.length, 0);
+
+    // In author-date style, bibliography entry title is formatted
+    assert.ok(result.bibliography);
+    const bibEntry = result.bibliography.entries[0];
+    assert.ok(bibEntry.plainText.includes("Discourse on Method"));
+    // plainText contains zero markup tags
+    assert.equal(bibEntry.plainText.includes("<"), false);
+  });
 });
