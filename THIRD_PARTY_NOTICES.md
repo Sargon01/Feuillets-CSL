@@ -41,3 +41,16 @@ Feuillets CSL incorporates or links against open-source software libraries. This
 - **Files**: `test/fixtures/styles/author-date.csl`, `test/fixtures/styles/numeric.csl`, `test/fixtures/styles/note.csl`, `test/fixtures/styles/note-positions.csl`
 - **Provenance**: Minimal test fixtures created specifically for the Feuillets CSL test suite to validate CSL engine integration across in-text (author-date), numeric, note, and contextual note position style classes.
 - **Notice**: These are project-internal test fixtures authored for this repository, not copies of official third-party styles. They are distributed under the project's repository license (AGPL-3.0-or-later).
+
+---
+
+## 4. Runtime Bundled CSL Locales
+
+- **Files**: `src/locales/locales-en-US.xml`, `src/locales/locales-fr-FR.xml`
+- **Upstream Repository**: https://github.com/citation-style-language/locales
+- **Upstream Commit**: `a89adece41013402236e2c9020972d7e931fbab8` (2026-09-10)
+- **License**: Creative Commons Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0), as declared in their respective XML headers.
+- **Copyright & Contributors**:
+  - `locales-en-US.xml`: Andrew Dunning, Sebastian Karcher, Rintze M. Zelle, Denis Meier, Brenton M. Wiernik, and CSL contributors.
+  - `locales-fr-FR.xml`: Grégoire Colly, Collectif Zotero francophone, and CSL contributors.
+- **Notice**: Full, unmodified official files bundled with complete XML metadata, contributor lists, and license declarations intact. Zero runtime downloads and zero network requests.

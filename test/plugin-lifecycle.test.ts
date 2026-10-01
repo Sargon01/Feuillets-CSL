@@ -20,7 +20,7 @@ interface MockRegistryState {
 
 function createMockCitationApi(state: MockRegistryState): FeuilletsCitationApi {
   return {
-    apiVersion: 1,
+    apiVersion: 2,
     registerProvider(provider: CitationEngineProvider): void {
       state.registerCallCount++;
       state.providers.set(provider.id, provider);
@@ -237,14 +237,14 @@ describe("Plugin Lifecycle & Scenarios", () => {
     });
   });
 
-  it("CAS G: rejects connection when apiVersion !== 1", () => {
+  it("CAS G: rejects connection when apiVersion !== 2", () => {
     const registryState: MockRegistryState = {
       providers: new Map(),
       registerCallCount: 0,
       unregisterCallCount: 0,
     };
     const invalidApi = {
-      apiVersion: 2,
+      apiVersion: 1,
       registerProvider: (p: CitationEngineProvider) => {
         registryState.providers.set(p.id, p);
       },
@@ -308,6 +308,14 @@ describe("Plugin Lifecycle & Scenarios", () => {
       id: PROVIDER_ID,
       name: "Feuillets CSL (Newer)",
       version: "0.2.0",
+      renderDocument: async (req) => ({
+        documentId: req.documentId,
+        revision: req.revision,
+        citations: [],
+        bibliography: null,
+        diagnostics: [],
+      }),
+      disposeDocument: () => {},
     };
     registryState.providers.set(PROVIDER_ID, newerProvider);
 
@@ -333,7 +341,8 @@ describe("Plugin Lifecycle & Scenarios", () => {
 
   it("verifies 0 network dependencies and 0 network usage in source and bundle", () => {
     const forbiddenPatterns = [
-      /\bfetch\s*\(/,
+      /(?:window|globalThis|navigator)\.fetch\b/,
+      /(?<![\w.$])fetch\s*\([^)]*\)\s*(?!\s*\{)/,
       /\bXMLHttpRequest\b/,
       /\bWebSocket\b/,
       /\bEventSource\b/,

@@ -40,6 +40,6 @@ console.log(
 if (fs.existsSync("main.js")) {
   const mainBytes = fs.statSync("main.js").size;
   console.log(
-    `[engine-probe] main.js size: ${mainBytes} bytes (engine remains unimported in main plugin)`
+    `[engine-probe] main.js size: ${mainBytes} bytes (engine and bundled locales integrated in main plugin)`
   );
 }

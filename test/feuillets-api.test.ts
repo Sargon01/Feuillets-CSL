@@ -11,7 +11,7 @@ import type { CitationEngineProvider, FeuilletsCitationApi } from "../src/feuill
 function createValidCitationApi(): FeuilletsCitationApi {
   const providers = new Map<string, CitationEngineProvider>();
   return {
-    apiVersion: 1,
+    apiVersion: 2,
     registerProvider(provider: CitationEngineProvider): void {
       providers.set(provider.id, provider);
     },
@@ -46,12 +46,12 @@ function createAppWithFeuillets(apiOverride?: unknown): App {
 }
 
 describe("getFeuilletsCitationApi", () => {
-  it("detects a valid Feuillets citation API v1", () => {
+  it("detects a valid Feuillets citation API v2", () => {
     const app = createAppWithFeuillets();
     const api = getFeuilletsCitationApi(app);
 
     assert.ok(api !== null);
-    assert.equal(api.apiVersion, 1);
+    assert.equal(api.apiVersion, 2);
     assert.equal(typeof api.registerProvider, "function");
     assert.equal(typeof api.unregisterProvider, "function");
     assert.equal(typeof api.getProvider, "function");
@@ -81,8 +81,42 @@ describe("getFeuilletsCitationApi", () => {
     assert.equal(getFeuilletsCitationApi(app), null);
   });
 
-  it("returns null when citations apiVersion is not 1", () => {
-    const invalidVersions = [0, 2, 99, "1", null, undefined];
+  it("strictly enforces apiVersion === 2 (v1 rejected, v2 accepted, v3 rejected)", () => {
+    // v1 is rejected cleanly
+    const appV1 = createAppWithFeuillets({
+      citations: {
+        apiVersion: 1,
+        registerProvider: () => {},
+        unregisterProvider: () => {},
+        getProvider: () => null,
+      },
+    });
+    assert.equal(getFeuilletsCitationApi(appV1), null, "API v1 must be rejected cleanly");
+
+    // v2 is accepted
+    const appV2 = createAppWithFeuillets({
+      citations: {
+        apiVersion: 2,
+        registerProvider: () => {},
+        unregisterProvider: () => {},
+        getProvider: () => null,
+      },
+    });
+    assert.ok(getFeuilletsCitationApi(appV2) !== null, "API v2 must be accepted");
+
+    // v3 is rejected cleanly
+    const appV3 = createAppWithFeuillets({
+      citations: {
+        apiVersion: 3,
+        registerProvider: () => {},
+        unregisterProvider: () => {},
+        getProvider: () => null,
+      },
+    });
+    assert.equal(getFeuilletsCitationApi(appV3), null, "API v3 must be rejected cleanly");
+
+    // Other invalid versions
+    const invalidVersions = [0, 99, "2", null, undefined];
     for (const v of invalidVersions) {
       const app = createAppWithFeuillets({
         citations: {
@@ -103,7 +137,7 @@ describe("getFeuilletsCitationApi", () => {
   it("returns null when required methods are missing or not functions", () => {
     const missingRegister = createAppWithFeuillets({
       citations: {
-        apiVersion: 1,
+        apiVersion: 2,
         unregisterProvider: () => {},
         getProvider: () => null,
       },
@@ -112,7 +146,7 @@ describe("getFeuilletsCitationApi", () => {
 
     const missingUnregister = createAppWithFeuillets({
       citations: {
-        apiVersion: 1,
+        apiVersion: 2,
         registerProvider: () => {},
         getProvider: () => null,
       },
@@ -121,7 +155,7 @@ describe("getFeuilletsCitationApi", () => {
 
     const missingGet = createAppWithFeuillets({
       citations: {
-        apiVersion: 1,
+        apiVersion: 2,
         registerProvider: () => {},
         unregisterProvider: () => {},
       },
@@ -146,7 +180,7 @@ describe("isFeuilletsPresentWithoutCitationApi", () => {
     assert.equal(isFeuilletsPresentWithoutCitationApi(app), false);
   });
 
-  it("returns false when Feuillets is present with valid API", () => {
+  it("returns false when Feuillets is present with valid API v2", () => {
     const app = createAppWithFeuillets();
     assert.equal(isFeuilletsPresentWithoutCitationApi(app), false);
   });
@@ -156,15 +190,25 @@ describe("isFeuilletsPresentWithoutCitationApi", () => {
     assert.equal(isFeuilletsPresentWithoutCitationApi(app), true);
   });
 
-  it("returns true when Feuillets has an incompatible apiVersion", () => {
-    const app = createAppWithFeuillets({
+  it("returns true when Feuillets has an incompatible apiVersion (e.g. v1 or v3)", () => {
+    const appV1 = createAppWithFeuillets({
       citations: {
-        apiVersion: 2,
+        apiVersion: 1,
         registerProvider: () => {},
         unregisterProvider: () => {},
         getProvider: () => null,
       },
     });
-    assert.equal(isFeuilletsPresentWithoutCitationApi(app), true);
+    assert.equal(isFeuilletsPresentWithoutCitationApi(appV1), true);
+
+    const appV3 = createAppWithFeuillets({
+      citations: {
+        apiVersion: 3,
+        registerProvider: () => {},
+        unregisterProvider: () => {},
+        getProvider: () => null,
+      },
+    });
+    assert.equal(isFeuilletsPresentWithoutCitationApi(appV3), true);
   });
 });

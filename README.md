@@ -2,32 +2,31 @@
 
 An optional companion plugin for [Feuillets](https://github.com/Sargon01) that adds native Citation Style Language (CSL) citation processing.
 
-> **Status:** Under active development (Lot 5 — Stateful document engine).
-> The internal CSL processing engine now supports persistent document sessions, safe append-only incremental rendering, automated rebuilds on non-safe modifications, rich formatting AST output without raw HTML, and full lifecycle disposal. It is not yet exposed to Feuillets or integrated into the companion provider API.
+> **Status:** Under active development (Lot 6 — Public provider bridge).
+> The real CSL documentary engine is now exposed to Feuillets through the public citation provider API v2 (`renderDocument` and `disposeDocument`).
+> Full official `en-US` and `fr-FR` runtime locales are bundled locally. Other locales are not yet bundled and fail closed with `CSL_LOCALE_UNAVAILABLE`.
+> Feuillets surfaces (Live Preview, Reading Mode, Continu, Aperçu, Bibliographie, exports) do not consume the engine yet. Real-time UI rendering and host adapters will be integrated in Lot 7.
 
 ## Overview
 
-Feuillets CSL connects to the Feuillets writing studio through its public citation provider API (`plugin.api.citations`, API v1).
+Feuillets CSL connects to the Feuillets writing studio through its public citation provider API (`plugin.api.citations`, API v2).
 
 - **Companion plugin:** Feuillets CSL is strictly optional and requires Feuillets to be installed and active in Obsidian.
 - **Citation syntax:** Citations remain in standard Pandoc format (`[@citekey]`, `[@item1; @item2]`).
 - **100% Local & Offline:** The plugin operates entirely locally. No network connections, telemetry, or remote requests are made.
 - **Autonomous & Resilient:** Handles asynchronous plugin loading and automatic re-registration if Feuillets is reloaded.
+- **Pure Documentary Bridge:** Exchanges pure DTO structures (`CitationDocumentRequest` and `CitationDocumentResult`) with zero Obsidian types, zero Vault access, and zero raw HTML.
 
-## Current Scope (Lot 5)
+## Current Scope (Lot 6)
 
-Lot 5 establishes the stateful CSL document engine with rich safe output:
+Lot 6 establishes the real public API bridge between Feuillets and Feuillets CSL:
 
-- **Isolated Document Sessions:** Every document (`documentId`) maintains its own private, isolated citeproc engine session. No engine instance is ever shared across documents.
-- **Append-Only Incremental Fast Path:** When newly submitted clusters are an exact append-only extension of the previous sequence, the existing engine state is preserved and only appended clusters are evaluated (~10x faster).
-- **Automated Rebuilds:** Any non-safe modification (middle insertion, cluster deletion, reordering, locator/mode/noteIndex alteration, or resource version change) triggers an automated full rebuild.
-- **Rich AST Rendering:** Formatted output (italics, oblique, bold, small-caps, underline, super/subscripts, roman resets, numeric layout blocks, and structured link intentions) is converted into a safe `CitationRenderNode` AST with zero raw HTML strings.
-- **Clean Plain Text:** Each rendered citation and bibliography entry provides a guaranteed tag-free `plainText` representation derived from AST traversal.
-- **Deterministic Revision Handling:** Rejects stale revisions (`STALE_REVISION`) and prevents divergent document content on identical revisions (`REVISION_CONFLICT`).
-- **Immutable Bibliographic Caching:** Parsed BibTeX item stores are cached by resource ID and version, shared safely across documents while citeproc engines remain strictly isolated.
-- **Lifecycle Disposal:** Full resource and session cleanup via `disposeDocument(documentId)` and `dispose()`.
+- **Provider API v2:** `CitationEngineProvider` now provides `renderDocument(request)` and `disposeDocument(documentId)` across the plugin boundary.
+- **Real Engine Integration:** `main.ts` connects `BundledCslLocaleProvider` and `CiteprocDocumentEngine` to `FeuilletsCslProvider`.
+- **Bundled Runtime Locales:** Official, full CSL locale definitions for `en-US` and `fr-FR` from `citation-style-language/locales` are embedded locally with complete metadata, contributors, and licensing notices preserved.
+- **Fail-Closed Locale Strategy:** Requests for unbundled locales return `CSL_LOCALE_UNAVAILABLE` rather than falling back silently.
+- **Independent Lifecycle:** Plugin unloads dispose local sessions and shared caches via `provider.dispose()`, even if a newer provider has registered with Feuillets. Reconnecting after a Feuillets reload preserves active engine sessions.
 - **Strict Network Isolation:** 0 network dependencies, 0 network APIs, 0 remote calls (`npm run audit:network`).
-- **Uncoupled Plugin Bundle:** The engine is not yet imported by `main.ts`, keeping `main.js` minimal (~5 KB).
 
 ## Development
 

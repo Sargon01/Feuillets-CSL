@@ -38,7 +38,7 @@ function isValidCitationApi(val: unknown): val is FeuilletsCitationApi {
  * Safely discovers and retrieves the Feuillets citation API from the Obsidian App.
  *
  * Returns null if Feuillets is not loaded, if its API is not exposed,
- * or if its citation API version/contract does not match CITATION_API_VERSION (1).
+ * or if its citation API version/contract does not match CITATION_API_VERSION (2).
  * Never throws exceptions.
  */
 export function getFeuilletsCitationApi(app: App): FeuilletsCitationApi | null {

@@ -23,6 +23,9 @@ const context = await esbuild.context({
     "electron",
     ...builtins,
   ],
+  loader: {
+    ".xml": "text",
+  },
 });
 
 if (prod) {

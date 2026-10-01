@@ -433,7 +433,7 @@ describe("Engine Contract (Lot 3)", () => {
     }
   });
 
-  it("keeps CitationDocumentEngine internal to Feuillets-CSL without modifying FeuilletsCslProvider", () => {
+  it("verifies CitationEngineProvider v2 and FeuilletsCslProvider contract integration", () => {
     // Mock internal engine implementing CitationDocumentEngine
     class MockEngine implements CitationDocumentEngine {
       private disposed = false;
@@ -469,21 +469,17 @@ describe("Engine Contract (Lot 3)", () => {
     assert.equal(typeof engine.disposeDocument, "function");
     assert.equal(typeof engine.dispose, "function");
 
-    // Verify FeuilletsCslProvider is UNMODIFIED (minimal Lot 2 provider)
-    const provider = new FeuilletsCslProvider("0.1.0");
-    const providerRecord = provider as unknown as Record<string, unknown>;
+    const provider = new FeuilletsCslProvider("0.1.0", engine);
 
     assert.equal(provider.id, PROVIDER_ID);
     assert.equal(provider.name, PROVIDER_NAME);
     assert.equal(provider.version, "0.1.0");
-    assert.equal(CITATION_API_VERSION, 1);
+    assert.equal(CITATION_API_VERSION, 2);
 
-    // Provider must NOT contain engine methods
-    assert.equal(providerRecord["renderDocument"], undefined);
-    assert.equal(providerRecord["disposeDocument"], undefined);
-    assert.equal(providerRecord["dispose"], undefined);
-    assert.equal(providerRecord["createSession"], undefined);
-    assert.equal(providerRecord["parseBibtex"], undefined);
+    // Provider exposes renderDocument, disposeDocument, and dispose
+    assert.equal(typeof provider.renderDocument, "function");
+    assert.equal(typeof provider.disposeDocument, "function");
+    assert.equal(typeof provider.dispose, "function");
   });
 
   it("verifies engine files do not import Obsidian or contain network/process modules", () => {

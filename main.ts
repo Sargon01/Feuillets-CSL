@@ -2,12 +2,14 @@ import { Plugin } from "obsidian";
 import { FeuilletsCslProvider, PROVIDER_ID } from "./src/citation-provider.ts";
 import { getFeuilletsCitationApi } from "./src/feuillets-api.ts";
 import type { FeuilletsCitationApi } from "./src/feuillets-api-types.ts";
+import { BundledCslLocaleProvider } from "./src/bundled-locales.ts";
+import { CiteprocDocumentEngine } from "./src/citeproc-engine.ts";
 
 /**
  * Feuillets CSL companion plugin.
  *
- * Connects to the Feuillets writing studio and registers a minimal
- * CSL citation engine provider.
+ * Connects to the Feuillets writing studio and registers a full
+ * CSL citation engine provider (v2) backed by CiteprocDocumentEngine.
  */
 export default class FeuilletsCslPlugin extends Plugin {
   private provider: FeuilletsCslProvider | null = null;
@@ -17,7 +19,9 @@ export default class FeuilletsCslPlugin extends Plugin {
 
   onload(): void {
     this.unloaded = false;
-    this.provider = new FeuilletsCslProvider(this.manifest.version);
+    const localeProvider = new BundledCslLocaleProvider();
+    const engine = new CiteprocDocumentEngine(localeProvider);
+    this.provider = new FeuilletsCslProvider(this.manifest.version, engine);
 
     // 1. Try connecting immediately in case Feuillets was loaded first
     this.connect();
@@ -31,7 +35,7 @@ export default class FeuilletsCslPlugin extends Plugin {
       if (!ok && !this.warnedFeuilletsMissing) {
         this.warnedFeuilletsMissing = true;
         console.warn(
-          "[Feuillets CSL] Feuillets citation API (v1) not found. Feuillets CSL is waiting for Feuillets."
+          "[Feuillets CSL] Feuillets citation API (v2) not found. Feuillets CSL is waiting for Feuillets."
         );
       }
     });
@@ -106,6 +110,13 @@ export default class FeuilletsCslPlugin extends Plugin {
         api.unregisterProvider(PROVIDER_ID);
       }
     } finally {
+      if (this.provider) {
+        try {
+          this.provider.dispose();
+        } catch {
+          // Dispose must never crash unload
+        }
+      }
       this.provider = null;
       this.connected = false;
       super.onunload();
