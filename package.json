@@ -1,6 +1,6 @@
 {
   "name": "feuillets-csl",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Adds native CSL citation processing to the Feuillets writing studio. Requires Feuillets.",
   "main": "main.js",
   "type": "module",

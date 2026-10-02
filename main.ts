@@ -42,6 +42,12 @@ export default class FeuilletsCslPlugin extends Plugin {
 
     // Re-register after a Feuillets reload replaces its provider registry.
     const CHECK_INTERVAL_MS = 4000;
+    const hasUnref = (value: unknown): value is { unref: () => void } =>
+      typeof value === "object" &&
+      value !== null &&
+      "unref" in value &&
+      typeof value.unref === "function";
+
     const createInterval = (callback: () => void, delay: number): number => {
       if (
         typeof window !== "undefined" &&
@@ -52,7 +58,9 @@ export default class FeuilletsCslPlugin extends Plugin {
 
       const nodeSetInterval = setInterval;
       const timer = nodeSetInterval(callback, delay);
-      timer.unref();
+      if (hasUnref(timer)) {
+        timer.unref();
+      }
       return Number(timer);
     };
 
