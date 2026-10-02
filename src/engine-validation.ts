@@ -1,12 +1,11 @@
 /**
- * Feuillets CSL — Runtime Engine Request Validation (Lot 3)
+ * Feuillets CSL — Runtime Engine Request Validation
  *
  * Validates document citation requests coming from Feuillets across the
  * plugin boundary. Since caller and callee are compiled separately, runtime
  * validation ensures all contract invariants and types are strictly satisfied.
  *
  * Rules:
- * - No `any` or `as any`
  * - No silent normalization (invalid values are rejected, never coerced)
  * - Complete error reporting with exact paths, error codes, and messages
  */
@@ -82,7 +81,6 @@ export function validateCitationDocumentRequest(
     };
   }
 
-  // 1. documentId
   if (value.documentId === undefined) {
     errors.push({
       path: "documentId",
@@ -103,7 +101,6 @@ export function validateCitationDocumentRequest(
     });
   }
 
-  // 2. revision
   if (value.revision === undefined) {
     errors.push({
       path: "revision",
@@ -124,7 +121,6 @@ export function validateCitationDocumentRequest(
     });
   }
 
-  // 3. style
   if (value.style === undefined) {
     errors.push({
       path: "style",
@@ -201,7 +197,6 @@ export function validateCitationDocumentRequest(
     }
   }
 
-  // 4. bibliographies
   if (value.bibliographies === undefined) {
     errors.push({
       path: "bibliographies",
@@ -321,7 +316,6 @@ export function validateCitationDocumentRequest(
     }
   }
 
-  // 5. locale (optional)
   if (value.locale !== undefined) {
     if (typeof value.locale !== "string") {
       errors.push({
@@ -338,7 +332,6 @@ export function validateCitationDocumentRequest(
     }
   }
 
-  // 6. clusters
   if (value.clusters === undefined) {
     errors.push({
       path: "clusters",
@@ -367,7 +360,6 @@ export function validateCitationDocumentRequest(
         continue;
       }
 
-      // cluster.id
       if (cluster.id === undefined) {
         errors.push({
           path: `${clusterPath}.id`,
@@ -397,7 +389,6 @@ export function validateCitationDocumentRequest(
         seenClusterIds.add(cluster.id);
       }
 
-      // cluster.noteIndex (optional)
       if (cluster.noteIndex !== undefined) {
         if (
           typeof cluster.noteIndex !== "number" ||
@@ -411,7 +402,6 @@ export function validateCitationDocumentRequest(
         }
       }
 
-      // cluster.items
       if (cluster.items === undefined) {
         errors.push({
           path: `${clusterPath}.items`,
@@ -448,7 +438,6 @@ export function validateCitationDocumentRequest(
             continue;
           }
 
-          // item.id (citekey)
           if (item.id === undefined) {
             errors.push({
               path: `${itemPath}.id`,
@@ -469,7 +458,6 @@ export function validateCitationDocumentRequest(
             });
           }
 
-          // item.prefix (optional)
           if (item.prefix !== undefined && typeof item.prefix !== "string") {
             errors.push({
               path: `${itemPath}.prefix`,
@@ -478,7 +466,6 @@ export function validateCitationDocumentRequest(
             });
           }
 
-          // item.suffix (optional)
           if (item.suffix !== undefined && typeof item.suffix !== "string") {
             errors.push({
               path: `${itemPath}.suffix`,
@@ -487,7 +474,6 @@ export function validateCitationDocumentRequest(
             });
           }
 
-          // item.locator (optional)
           if (item.locator !== undefined && typeof item.locator !== "string") {
             errors.push({
               path: `${itemPath}.locator`,
@@ -496,7 +482,6 @@ export function validateCitationDocumentRequest(
             });
           }
 
-          // item.label (optional)
           if (item.label !== undefined && typeof item.label !== "string") {
             errors.push({
               path: `${itemPath}.label`,
@@ -505,7 +490,6 @@ export function validateCitationDocumentRequest(
             });
           }
 
-          // item.mode (optional)
           if (item.mode !== undefined) {
             if (typeof item.mode !== "string" || !VALID_MODES.has(item.mode)) {
               errors.push({
@@ -520,7 +504,6 @@ export function validateCitationDocumentRequest(
     }
   }
 
-  // 7. includeBibliography
   if (value.includeBibliography === undefined) {
     errors.push({
       path: "includeBibliography",
@@ -542,7 +525,6 @@ export function validateCitationDocumentRequest(
     };
   }
 
-  // Safe typed structure without `any`
   const validatedRequest: CitationDocumentRequest = {
     documentId: value.documentId as string,
     revision: value.revision as number,

@@ -24,7 +24,7 @@ function loadFixture(relPath: string): string {
   return fs.readFileSync(path.resolve(__dirname, relPath), "utf-8");
 }
 
-describe("Citeproc Document Sessions & Invalidation (Lot 5)", () => {
+describe("Citeproc Document Sessions", () => {
   const enUsLocale = loadFixture("./fixtures/locales/locales-en-US.xml");
   const frFrLocale = loadFixture("./fixtures/locales/locales-fr-FR.xml");
   const authorDateStyle = loadFixture("./fixtures/styles/author-date.csl");
@@ -176,7 +176,6 @@ describe("Citeproc Document Sessions & Invalidation (Lot 5)", () => {
     assert.equal(getEngineCreations(), 1);
     assert.deepEqual(res1, res2);
 
-    // Verify returning cloned/immutable result
     assert.notEqual(res1, res2);
   });
 
@@ -244,7 +243,7 @@ describe("Citeproc Document Sessions & Invalidation (Lot 5)", () => {
     await engine.renderDocument(baseReq);
     assert.equal(getEngineCreations(), 1);
 
-    // 1. Locator change -> rebuild
+    // Locator change -> rebuild
     await engine.renderDocument({
       ...baseReq,
       revision: 2,
@@ -252,7 +251,7 @@ describe("Citeproc Document Sessions & Invalidation (Lot 5)", () => {
     });
     assert.equal(getEngineCreations(), 2);
 
-    // 2. Mode change -> rebuild
+    // Mode change -> rebuild
     await engine.renderDocument({
       ...baseReq,
       revision: 3,
@@ -260,7 +259,7 @@ describe("Citeproc Document Sessions & Invalidation (Lot 5)", () => {
     });
     assert.equal(getEngineCreations(), 3);
 
-    // 3. Prefix change -> rebuild
+    // Prefix change -> rebuild
     await engine.renderDocument({
       ...baseReq,
       revision: 4,
@@ -268,7 +267,7 @@ describe("Citeproc Document Sessions & Invalidation (Lot 5)", () => {
     });
     assert.equal(getEngineCreations(), 4);
 
-    // 4. Note index change -> rebuild
+    // Note index change -> rebuild
     await engine.renderDocument({
       ...baseReq,
       revision: 5,
@@ -417,7 +416,6 @@ describe("Citeproc Document Sessions & Invalidation (Lot 5)", () => {
     await engine.renderDocument(reqB);
     assert.equal(getEngineCreations(), 2);
 
-    // Dispose doc-A
     engine.disposeDocument("doc-A");
 
     // doc-B is append-only -> reused engine
@@ -438,7 +436,6 @@ describe("Citeproc Document Sessions & Invalidation (Lot 5)", () => {
     });
     assert.equal(getEngineCreations(), 3, "doc-A starts fresh session after disposal");
 
-    // Global dispose()
     engine.dispose();
 
     // Subsequent request for doc-B must recreate engine
@@ -461,7 +458,6 @@ describe("Citeproc Document Sessions & Invalidation (Lot 5)", () => {
 
     await engine.renderDocument(reqRev2);
 
-    // Request with older revision 1
     const reqRev1: CitationDocumentRequest = {
       ...reqRev2,
       revision: 1,
@@ -571,7 +567,7 @@ describe("Citeproc Document Sessions & Invalidation (Lot 5)", () => {
       includeBibliography: true,
     };
 
-    // 1. First render on doc-crossref-1: adapts sources as an ensemble
+    // First render on doc-crossref-1: adapts sources as an ensemble
     const res1 = await engine.renderDocument(reqDoc1);
     assert.equal(getAdaptCalls(), 1);
     assert.equal(getEngineCreations(), 1);
@@ -585,7 +581,7 @@ describe("Citeproc Document Sessions & Invalidation (Lot 5)", () => {
     assert.ok(bibText.includes("Collected Works on Science"), "child entry inherited parent container title");
     assert.ok(bibText.includes("2024"), "child entry inherited parent year");
 
-    // 2. Second document doc-crossref-2 with the exact same ordered bibliography ensemble
+    // Second document doc-crossref-2 with the exact same ordered bibliography ensemble
     const reqDoc2: CitationDocumentRequest = {
       documentId: "doc-crossref-2",
       revision: 1,
@@ -616,7 +612,7 @@ describe("Citeproc Document Sessions & Invalidation (Lot 5)", () => {
     assert.equal(resDoc1Append.citations.length, 2);
     assert.equal(resDoc2.citations.length, 1);
 
-    // 3. Change bibliography.version of source B:
+    // Change bibliography.version of source B:
     const sourceBv2 = { id: "source-b", version: "v2", format: "bibtex" as const, content: sourceBContent };
     const reqDoc1VersionChange: CitationDocumentRequest = {
       ...reqDoc1,
@@ -646,13 +642,13 @@ describe("Citeproc Document Sessions & Invalidation (Lot 5)", () => {
       includeBibliography: false,
     };
 
-    it("A: produces identical resource signature for identical id, version, format, and order", () => {
+    it("produces identical resource signature for identical id, version, format, and order", () => {
       const sig1 = computeResourceSignature(baseRequest);
       const sig2 = computeResourceSignature({ ...baseRequest });
       assert.equal(sig1, sig2);
     });
 
-    it("B: produces different resource signature when style.version changes", () => {
+    it("produces different resource signature when style.version changes", () => {
       const sig1 = computeResourceSignature(baseRequest);
       const sig2 = computeResourceSignature({
         ...baseRequest,
@@ -661,7 +657,7 @@ describe("Citeproc Document Sessions & Invalidation (Lot 5)", () => {
       assert.notEqual(sig1, sig2);
     });
 
-    it("C: produces different resource signature when bibliography.version changes", () => {
+    it("produces different resource signature when bibliography.version changes", () => {
       const sig1 = computeResourceSignature(baseRequest);
       const sig2 = computeResourceSignature({
         ...baseRequest,
@@ -672,7 +668,7 @@ describe("Citeproc Document Sessions & Invalidation (Lot 5)", () => {
       assert.notEqual(sig1, sig2);
     });
 
-    it("D: produces different resource signature when bibliography order changes", () => {
+    it("produces different resource signature when bibliography order changes", () => {
       const bib1 = { id: "bib-1", version: "v1", format: "bibtex" as const, content: bibContent };
       const bib2 = { id: "bib-2", version: "v1", format: "bibtex" as const, content: bibContent };
 
@@ -687,7 +683,7 @@ describe("Citeproc Document Sessions & Invalidation (Lot 5)", () => {
       assert.notEqual(sig1, sig2);
     });
 
-    it("E: produces different resource signature when locale changes", () => {
+    it("produces different resource signature when locale changes", () => {
       const sig1 = computeResourceSignature(baseRequest);
       const sig2 = computeResourceSignature({
         ...baseRequest,
@@ -696,8 +692,8 @@ describe("Citeproc Document Sessions & Invalidation (Lot 5)", () => {
       assert.notEqual(sig1, sig2);
     });
 
-    it("F: produces identical resource signature when content changes but id and version remain identical", async () => {
-      // Voluntary contract test: 'version' is the sole invalidation token, content is never hashed
+    it("produces identical resource signature when content changes but id and version remain identical", async () => {
+      // Resource content is never hashed; callers must update version tokens when it changes.
       const sig1 = computeResourceSignature(baseRequest);
       const sig2 = computeResourceSignature({
         ...baseRequest,

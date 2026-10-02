@@ -31,7 +31,7 @@ class TestLocaleProvider implements CslLocaleProvider {
   }
 }
 
-describe("Citeproc Document Engine (Lot 4)", () => {
+describe("Citeproc Document Engine", () => {
   const localeProvider = new TestLocaleProvider();
   const authorDateStyle = loadFixture("fixtures/styles/author-date.csl");
   const numericStyle = loadFixture("fixtures/styles/numeric.csl");
@@ -167,9 +167,8 @@ describe("Citeproc Document Engine (Lot 4)", () => {
     assert.equal(result.citations.length, 3);
     assert.equal(result.bibliography, null);
 
-    // First note mentions author
     assert.ok(result.citations[0].plainText.includes("Descartes"));
-    // Second note mentions Spinoza
+
     assert.ok(result.citations[1].plainText.includes("Spinoza"));
     // Third note references note 1
     assert.ok(result.citations[2].plainText.includes("note 1"));
@@ -490,11 +489,9 @@ describe("Citeproc Document Engine (Lot 4)", () => {
     const result = await engine.renderDocument(request);
     assert.equal(result.diagnostics.length, 0);
 
-    // Verify citation content is strictly plain text node (no HTML, no script DOM nodes)
     assert.equal(result.citations[0].content.length, 1);
     assert.equal(result.citations[0].content[0].type, "text");
 
-    // Verify bibliography entry content is strictly plain text node
     assert.ok(result.bibliography);
     assert.equal(result.bibliography?.entries[0].content[0].type, "text");
 
@@ -537,7 +534,6 @@ describe("Citeproc Document Engine (Lot 4)", () => {
     assert.ok(entry.plainText.includes("[1]"));
     assert.ok(entry.plainText.includes("Turing"));
 
-    // Check AST blocks
     assert.equal(entry.content.length, 2);
     const leftMargin = entry.content[0] as { type: string; display: string };
     assert.equal(leftMargin.type, "block");

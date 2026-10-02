@@ -13,7 +13,7 @@ function createBibSource(content: string, id: string = "bib-1"): CitationBibliog
   };
 }
 
-describe("BibTeX Adapter (Lot 4)", () => {
+describe("BibTeX Adapter", () => {
   it("converts standard BibTeX and BibLaTeX entry types to CSL types", () => {
     const bibContent = `
 @article{art1, title={Article Title}, journal={Journal of Science}, year={2020}}
@@ -183,7 +183,7 @@ describe("BibTeX Adapter (Lot 4)", () => {
 
     const item = result.items.get("accent1");
     assert.ok(item);
-    // Checks that LaTeX commands are converted to Unicode characters
+
     assert.ok(item.title?.includes("é") || item.title?.includes("é"));
     assert.ok(item.title?.includes("è") || item.title?.includes("è"));
     assert.ok(item.title?.includes("ç") || item.title?.includes("ç"));
@@ -248,7 +248,7 @@ describe("BibTeX Adapter (Lot 4)", () => {
         (d) => d.code === "UNSUPPORTED_BIBTEX_TYPE" && d.severity === "error" && d.citekey === "unsupported1"
       )
     );
-    // Does not create a false or synthetic CSL entry
+
     assert.equal(result.items.has("unsupported1"), false);
   });
 

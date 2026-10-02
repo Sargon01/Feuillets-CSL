@@ -1,5 +1,5 @@
 /**
- * Feuillets CSL — Lot 6 Public Provider Bridge Tests
+ * Feuillets CSL — Public Provider Bridge Tests
  *
  * Verifies end-to-end integration between:
  * Feuillets Citation API v2 <-> FeuilletsCslProvider <-> CiteprocDocumentEngine
@@ -144,7 +144,7 @@ function assertSafeNodeAst(nodes: CitationRenderNode[]): void {
   }
 }
 
-describe("Public Provider Bridge (Lot 6)", () => {
+describe("Public Provider Bridge", () => {
   const authorDateStyle = loadFixture("fixtures/styles/author-date.csl");
 
   const sampleBibtex = `
@@ -167,7 +167,7 @@ describe("Public Provider Bridge (Lot 6)", () => {
 }
 `;
 
-  it("Section 19: real bridge invocation via Feuillets Citation API v2", async () => {
+  it("real bridge invocation via Feuillets Citation API v2", async () => {
     const state: MockRegistryState = {
       providers: new Map(),
       registerCallCount: 0,
@@ -179,7 +179,6 @@ describe("Public Provider Bridge (Lot 6)", () => {
     const plugin = new FeuilletsCslPlugin(mockApp as unknown as App, mockManifest);
     plugin.onload();
 
-    // 1. Verify provider registered in Feuillets API v2
     assert.equal(state.registerCallCount, 1);
     const provider = mockApi.getProvider(PROVIDER_ID);
     assert.ok(provider !== null, "Provider must be registered");
@@ -188,7 +187,6 @@ describe("Public Provider Bridge (Lot 6)", () => {
     assert.equal(provider.version, "0.1.0");
     assert.equal(CITATION_API_VERSION, 2);
 
-    // 2. Build real citation document request
     const request: CitationDocumentRequest = {
       documentId: "doc-bridge-test",
       revision: 1,
@@ -215,10 +213,8 @@ describe("Public Provider Bridge (Lot 6)", () => {
       includeBibliography: true,
     };
 
-    // 3. Call renderDocument on the public provider
     const result: CitationDocumentResult = await provider.renderDocument(request);
 
-    // 4. Verify result invariants
     assert.equal(result.documentId, "doc-bridge-test");
     assert.equal(result.revision, 1);
     assert.equal(result.citations.length, 1);
@@ -226,23 +222,20 @@ describe("Public Provider Bridge (Lot 6)", () => {
     assert.ok(result.citations[0].plainText.includes("Smith"));
     assert.ok(result.citations[0].plainText.includes("2020"));
 
-    // Verify rich AST without raw HTML
     assertSafeNodeAst(result.citations[0].content);
 
-    // Verify bibliography entry
     assert.ok(result.bibliography !== null);
     assert.equal(result.bibliography.entries.length, 1);
     assert.deepEqual(result.bibliography.entries[0].itemIds, ["smith2020"]);
     assert.ok(result.bibliography.entries[0].plainText.includes("Foundations of Modern Logic"));
     assertSafeNodeAst(result.bibliography.entries[0].content);
 
-    // No error diagnostics
     assert.equal(result.diagnostics.length, 0);
 
     plugin.onunload();
   });
 
-  it("Section 20: uses complete official fr-FR runtime locale via public provider", async () => {
+  it("uses complete official fr-FR runtime locale via public provider", async () => {
     const state: MockRegistryState = {
       providers: new Map(),
       registerCallCount: 0,
@@ -257,7 +250,7 @@ describe("Public Provider Bridge (Lot 6)", () => {
     const provider = mockApi.getProvider(PROVIDER_ID);
     assert.ok(provider !== null);
 
-    // 1. Two-author cluster: English produces "and", French produces "et"
+    // Two-author cluster: English produces "and", French produces "et"
     const reqEn: CitationDocumentRequest = {
       documentId: "doc-lang-en",
       revision: 1,
@@ -296,7 +289,7 @@ describe("Public Provider Bridge (Lot 6)", () => {
       `Expected 'Smith et Doe' in fr-FR but got: '${resFr.citations[0].plainText}'`
     );
 
-    // 2. No-date term: English produces "n.d.", French produces "s. d."
+    // No-date term: English produces "n.d.", French produces "s. d."
     const reqNoDateFr: CitationDocumentRequest = {
       documentId: "doc-nodate-fr",
       revision: 1,
@@ -316,7 +309,7 @@ describe("Public Provider Bridge (Lot 6)", () => {
     plugin.onunload();
   });
 
-  it("Section 21: fails closed on unbundled locale (e.g. de-DE) with CSL_LOCALE_UNAVAILABLE", async () => {
+  it("fails closed on unbundled locale (e.g. de-DE) with CSL_LOCALE_UNAVAILABLE", async () => {
     const state: MockRegistryState = {
       providers: new Map(),
       registerCallCount: 0,
@@ -343,20 +336,18 @@ describe("Public Provider Bridge (Lot 6)", () => {
 
     const result = await provider.renderDocument(request);
 
-    // Must fail closed with error diagnostic
     assert.ok(result.diagnostics.length > 0, "Must produce diagnostics for unavailable locale");
     const localeDiag = result.diagnostics.find((d) => d.code === "CSL_LOCALE_UNAVAILABLE");
     assert.ok(localeDiag !== undefined, "Must contain CSL_LOCALE_UNAVAILABLE diagnostic");
     assert.equal(localeDiag.severity, "error");
     assert.ok(localeDiag.message.includes("de-DE"));
 
-    // Fail-closed: citations must be empty
     assert.equal(result.citations.length, 0);
 
     plugin.onunload();
   });
 
-  it("Section 22: disposeDocument(documentId) releases document session without affecting others", async () => {
+  it("disposeDocument(documentId) releases document session without affecting others", async () => {
     const state: MockRegistryState = {
       providers: new Map(),
       registerCallCount: 0,
@@ -389,11 +380,9 @@ describe("Public Provider Bridge (Lot 6)", () => {
       includeBibliography: false,
     };
 
-    // Render both documents
     await provider.renderDocument(docAReqRev1);
     await provider.renderDocument(docBReqRev1);
 
-    // Dispose doc-A only
     provider.disposeDocument("doc-A");
 
     // Re-rendering doc-A at revision 1 starts fresh session
@@ -420,7 +409,7 @@ describe("Public Provider Bridge (Lot 6)", () => {
     plugin.onunload();
   });
 
-  it("Section 23: plugin onunload() cleans up provider and releases engine resources", async () => {
+  it("plugin onunload() cleans up provider and releases engine resources", async () => {
     const state: MockRegistryState = {
       providers: new Map(),
       registerCallCount: 0,
@@ -435,7 +424,6 @@ describe("Public Provider Bridge (Lot 6)", () => {
     const provider = mockApi.getProvider(PROVIDER_ID);
     assert.ok(provider !== null);
 
-    // Establish session
     const req: CitationDocumentRequest = {
       documentId: "doc-unload-test",
       revision: 1,
@@ -446,16 +434,14 @@ describe("Public Provider Bridge (Lot 6)", () => {
     };
     await provider.renderDocument(req);
 
-    // Unload plugin
     plugin.onunload();
 
-    // Verify unregister was called
     assert.equal(state.unregisterCallCount, 1);
     assert.equal(state.providers.get(PROVIDER_ID), undefined);
     assert.equal(plugin.isConnected(), false);
     assert.equal(plugin.getProvider(), null);
 
-    // In Section 18 scenario: if a newer provider had replaced plugin1's provider in Feuillets
+    // A replacement provider must survive unloading the older plugin instance.
     const pluginOld = new FeuilletsCslPlugin(mockApp as unknown as App, mockManifest);
     pluginOld.onload();
 
@@ -486,8 +472,7 @@ describe("Public Provider Bridge (Lot 6)", () => {
     assert.equal(state.providers.get(PROVIDER_ID), newerProvider);
   });
 
-  it("Section 24: preserves engine session across Feuillets reload cycles", async () => {
-    // 1. Initial Feuillets registry
+  it("preserves engine session across Feuillets reload cycles", async () => {
     let state: MockRegistryState = {
       providers: new Map(),
       registerCallCount: 0,
@@ -502,7 +487,6 @@ describe("Public Provider Bridge (Lot 6)", () => {
     const provider = mockApi.getProvider(PROVIDER_ID);
     assert.ok(provider !== null);
 
-    // 2. Render revision 1 in session
     const docReqRev1: CitationDocumentRequest = {
       documentId: "doc-session-persists",
       revision: 1,
@@ -514,7 +498,7 @@ describe("Public Provider Bridge (Lot 6)", () => {
     const res1 = await provider.renderDocument(docReqRev1);
     assert.equal(res1.revision, 1);
 
-    // 3. Simulate Feuillets reload: new registry, previous providers wiped out
+    // Simulate Feuillets reload: new registry, previous providers wiped out
     state = {
       providers: new Map(),
       registerCallCount: 0,
@@ -525,13 +509,12 @@ describe("Public Provider Bridge (Lot 6)", () => {
       api: { citations: mockApi },
     };
 
-    // 4. Feuillets CSL reconnects
     const connected = plugin.connect();
     assert.equal(connected, true);
     assert.equal(state.registerCallCount, 1);
     assert.equal(state.providers.get(PROVIDER_ID), provider);
 
-    // 5. Existing engine session for doc-session-persists is still alive and processes revision 2
+    // Existing engine session for doc-session-persists is still alive and processes revision 2
     const docReqRev2: CitationDocumentRequest = {
       ...docReqRev1,
       revision: 2,
@@ -549,7 +532,7 @@ describe("Public Provider Bridge (Lot 6)", () => {
     plugin.onunload();
   });
 
-  it("Section 25: validates structural schema parity (DTO contract)", async () => {
+  it("validates structural schema parity (DTO contract)", async () => {
     const state: MockRegistryState = {
       providers: new Map(),
       registerCallCount: 0,
@@ -591,7 +574,6 @@ describe("Public Provider Bridge (Lot 6)", () => {
       assert.equal(key in rootRecord, false);
     }
 
-    // Citations structural parity
     for (const cit of result.citations) {
       assert.equal(typeof cit.clusterId, "string");
       assert.equal(typeof cit.plainText, "string");
@@ -599,7 +581,6 @@ describe("Public Provider Bridge (Lot 6)", () => {
       assertSafeNodeAst(cit.content);
     }
 
-    // Bibliography structural parity
     assert.ok(result.bibliography !== null);
     assert.ok(Array.isArray(result.bibliography.entries));
     assert.equal(typeof result.bibliography.layout.hangingIndent, "boolean");

@@ -12,7 +12,7 @@ import type {
   CitationRenderLink,
 } from "../src/engine-contract.ts";
 
-describe("Citeproc Markup Adapter (Lot 5)", () => {
+describe("Citeproc Markup Adapter", () => {
   it("decodes HTML entities into Unicode text", () => {
     const raw = "Smith &#38; Jones &#60;text&#62; &quot;quoted&quot; &#39;single&#39; &#160;spaced";
     const decoded = decodeHtmlEntities(raw);
@@ -197,7 +197,6 @@ describe("Citeproc Markup Adapter (Lot 5)", () => {
 
     assert.equal(result.diagnostics.length, 0);
 
-    // Verify AST contains no script/img nodes, no event handlers
     assert.equal(result.nodes.length, 2);
     assert.equal(result.nodes[0].type, "span");
     assert.equal(result.nodes[1].type, "text");
@@ -206,7 +205,6 @@ describe("Citeproc Markup Adapter (Lot 5)", () => {
     assert.ok(textNode.text.includes("<script>alert(1)</script>"));
     assert.ok(textNode.text.includes("<img src=x onerror=alert(1)>"));
 
-    // Verify plainText contains the literal content without execution
     assert.ok(result.plainText.includes("<script>alert(1)</script>"));
   });
 
@@ -217,7 +215,7 @@ describe("Citeproc Markup Adapter (Lot 5)", () => {
     assert.equal(result.nodes.length, 1);
     const link = result.nodes[0] as CitationRenderLink;
     assert.equal(link.type, "link");
-    // Value is preserved structurally in AST
+
     assert.equal(link.href, "javascript:alert(1)");
     // Pure data, no DOM insertion, no window.open
     assert.equal(renderNodesToPlainText([link]), "Dangerous Link");

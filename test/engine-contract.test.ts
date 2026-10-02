@@ -32,7 +32,7 @@ import { CITATION_API_VERSION, PROVIDER_ID, PROVIDER_NAME } from "../src/feuille
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-describe("Engine Contract (Lot 3)", () => {
+describe("Citation Engine Contract", () => {
   it("enforces safe output with zero raw HTML fields in the AST contract", () => {
     const textNode: CitationRenderText = {
       type: "text",
@@ -133,7 +133,7 @@ describe("Engine Contract (Lot 3)", () => {
   });
 
   it("supports granular typography styles: application and explicit resetting", () => {
-    // 1. fontStyle: normal, italic, oblique
+    // fontStyle: normal, italic, oblique
     const fontStyles: CitationFontStyle[] = ["normal", "italic", "oblique"];
     for (const fontStyle of fontStyles) {
       const span: CitationRenderSpan = {
@@ -144,7 +144,7 @@ describe("Engine Contract (Lot 3)", () => {
       assert.equal(span.style.fontStyle, fontStyle);
     }
 
-    // 2. fontWeight: normal, bold, light
+    // fontWeight: normal, bold, light
     const fontWeights: CitationFontWeight[] = ["normal", "bold", "light"];
     for (const fontWeight of fontWeights) {
       const span: CitationRenderSpan = {
@@ -155,7 +155,7 @@ describe("Engine Contract (Lot 3)", () => {
       assert.equal(span.style.fontWeight, fontWeight);
     }
 
-    // 3. fontVariant: normal, small-caps
+    // fontVariant: normal, small-caps
     const fontVariants: CitationFontVariant[] = ["normal", "small-caps"];
     for (const fontVariant of fontVariants) {
       const span: CitationRenderSpan = {
@@ -166,7 +166,7 @@ describe("Engine Contract (Lot 3)", () => {
       assert.equal(span.style.fontVariant, fontVariant);
     }
 
-    // 4. textDecoration: none, underline
+    // textDecoration: none, underline
     const textDecorations: CitationTextDecoration[] = ["none", "underline"];
     for (const textDecoration of textDecorations) {
       const span: CitationRenderSpan = {
@@ -177,7 +177,7 @@ describe("Engine Contract (Lot 3)", () => {
       assert.equal(span.style.textDecoration, textDecoration);
     }
 
-    // 5. verticalAlign: baseline, superscript, subscript
+    // verticalAlign: baseline, superscript, subscript
     const verticalAligns: CitationVerticalAlign[] = ["baseline", "superscript", "subscript"];
     for (const verticalAlign of verticalAligns) {
       const span: CitationRenderSpan = {
@@ -370,11 +370,7 @@ describe("Engine Contract (Lot 3)", () => {
     assert.equal(result.revision, 1);
   });
 
-  it("preserves strict documentary order across citation clusters (representative scenario)", () => {
-    // Representative scenario specified in Lot 3:
-    // c1: smith2024
-    // c2: doe2023 with locator="42", label="page"
-    // c3: smith2024 (repeated citation)
+  it("preserves document order across repeated and located citation clusters", () => {
     const clusters: CitationClusterInput[] = [
       {
         id: "c1",
@@ -410,20 +406,17 @@ describe("Engine Contract (Lot 3)", () => {
       includeBibliography: true,
     };
 
-    // 1. Invariant: Cluster order c1 -> c2 -> c3 is strictly preserved
     assert.equal(request.clusters.length, 3);
     assert.equal(request.clusters[0].id, "c1");
     assert.equal(request.clusters[1].id, "c2");
     assert.equal(request.clusters[2].id, "c3");
 
-    // 2. Invariant: Item properties are intact
     assert.equal(request.clusters[0].items[0].id, "smith2024");
     assert.equal(request.clusters[1].items[0].id, "doe2023");
     assert.equal(request.clusters[1].items[0].locator, "42");
     assert.equal(request.clusters[1].items[0].label, "page");
     assert.equal(request.clusters[2].items[0].id, "smith2024");
 
-    // 3. Invariant: Validate successfully through engine validation
     const validation = validateCitationDocumentRequest(request);
     assert.equal(validation.valid, true);
     if (validation.valid) {
@@ -434,7 +427,6 @@ describe("Engine Contract (Lot 3)", () => {
   });
 
   it("verifies CitationEngineProvider v2 and FeuilletsCslProvider contract integration", () => {
-    // Mock internal engine implementing CitationDocumentEngine
     class MockEngine implements CitationDocumentEngine {
       private disposed = false;
       private documents = new Set<string>();
@@ -476,7 +468,6 @@ describe("Engine Contract (Lot 3)", () => {
     assert.equal(provider.version, "0.1.0");
     assert.equal(CITATION_API_VERSION, 2);
 
-    // Provider exposes renderDocument, disposeDocument, and dispose
     assert.equal(typeof provider.renderDocument, "function");
     assert.equal(typeof provider.disposeDocument, "function");
     assert.equal(typeof provider.dispose, "function");

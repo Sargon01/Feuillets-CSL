@@ -56,7 +56,6 @@ describe("FeuilletsCslProvider (API v2)", () => {
     assert.equal(provider.name, "Feuillets CSL");
     assert.equal(provider.version, "0.1.0");
 
-    // Conforms to CitationEngineProvider interface
     const publicProvider: CitationEngineProvider = provider;
     assert.equal(typeof publicProvider.renderDocument, "function");
     assert.equal(typeof publicProvider.disposeDocument, "function");

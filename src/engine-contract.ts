@@ -1,5 +1,5 @@
 /**
- * Feuillets CSL — Pure Documentary Engine Contract (Lot 3)
+ * Feuillets CSL — Citation Document Engine Contract
  *
  * Defines types, AST nodes, and invariants for the CSL citation engine.
  * This contract is completely pure:
@@ -9,9 +9,7 @@
  * - Fully isolated document citation contexts
  */
 
-// ---------------------------------------------------------------------------
-// 1. Bibliography & Style Sources
-// ---------------------------------------------------------------------------
+// Bibliography & Style Sources
 
 /**
  * Raw bibliography source provided to the citation engine.
@@ -39,9 +37,7 @@ export interface CitationStyleSource {
   xml: string;
 }
 
-// ---------------------------------------------------------------------------
-// 2. Citation Item Input
-// ---------------------------------------------------------------------------
+// Citation Item Input
 
 /**
  * Citation item rendering modes supported by CSL and Pandoc syntax.
@@ -68,9 +64,7 @@ export interface CitationItemInput {
   mode?: CitationItemMode;
 }
 
-// ---------------------------------------------------------------------------
-// 3. Citation Cluster Input
-// ---------------------------------------------------------------------------
+// Citation Cluster Input
 
 /**
  * A citation cluster (group of citation items appearing at a single location).
@@ -87,9 +81,7 @@ export interface CitationClusterInput {
   noteIndex?: number;
 }
 
-// ---------------------------------------------------------------------------
-// 4. Document Request
-// ---------------------------------------------------------------------------
+// Document Request
 
 /**
  * Complete document citation request sent to the engine.
@@ -116,9 +108,7 @@ export interface CitationDocumentRequest {
   includeBibliography: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// 5. Safe Output AST (HTML-Free)
-// ---------------------------------------------------------------------------
+// Safe Output AST (HTML-Free)
 
 /**
  * Explicit font styles supported by CSL typography rules.
@@ -231,9 +221,7 @@ export type CitationRenderNode =
   | CitationRenderBlock
   | CitationRenderLink;
 
-// ---------------------------------------------------------------------------
-// 6. Rendered Citations
-// ---------------------------------------------------------------------------
+// Rendered Citations
 
 /**
  * Rendered representation of a single citation cluster.
@@ -244,9 +232,7 @@ export interface RenderedCitation {
   content: CitationRenderNode[];
 }
 
-// ---------------------------------------------------------------------------
-// 7. Rendered Bibliography
-// ---------------------------------------------------------------------------
+// Rendered Bibliography
 
 /**
  * A single rendered bibliography entry.
@@ -283,9 +269,7 @@ export interface RenderedBibliography {
   layout: BibliographyLayout;
 }
 
-// ---------------------------------------------------------------------------
-// 8. Diagnostics
-// ---------------------------------------------------------------------------
+// Diagnostics
 
 /**
  * Severity level for engine diagnostics.
@@ -307,9 +291,7 @@ export interface CitationEngineDiagnostic {
   citekey?: string;
 }
 
-// ---------------------------------------------------------------------------
-// 9. Document Result
-// ---------------------------------------------------------------------------
+// Document Result
 
 /**
  * Complete result returned after rendering a document citation request.
@@ -322,14 +304,10 @@ export interface CitationDocumentResult {
   diagnostics: CitationEngineDiagnostic[];
 }
 
-// ---------------------------------------------------------------------------
-// 10. Future Engine Interface (Internal to Feuillets-CSL)
-// ---------------------------------------------------------------------------
+// Internal document engine interface
 
 /**
- * Pure internal interface for the future CSL document engine.
- *
- * NOT exposed on CitationEngineProvider or FeuilletsCitationApi in Lot 3.
+ * Internal document engine interface delegated to by the public API v2 provider.
  */
 export interface CitationDocumentEngine {
   renderDocument(

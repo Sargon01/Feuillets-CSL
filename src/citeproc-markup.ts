@@ -24,7 +24,7 @@ export function decodeHtmlEntities(raw: string): string {
 /**
  * Recursively extracts plain text from an array of CitationRenderNode objects.
  *
- * Guarantees that the resulting string is pure text with zero markup or tags.
+ * Formatting nodes contribute only their text; literal angle brackets remain text.
  */
 export function renderNodesToPlainText(nodes: CitationRenderNode[]): string {
   let result = "";
@@ -149,7 +149,8 @@ export interface ConvertMarkupResult {
  * Converts a raw HTML fragment produced by citeproc-ts into a safe CitationRenderNode AST.
  *
  * Enforces an allowlist of tags and attributes corresponding to citeproc's observed outputs.
- * Unknown markup triggers a CSL_MARKUP_UNSUPPORTED diagnostic and safe plain text fallback.
+ * Unknown tags produce a CSL_MARKUP_UNSUPPORTED warning; their text is retained
+ * without creating markup nodes. Link protocols must be sanitized by the host.
  */
 export function convertCiteprocHtmlToNodes(htmlInput: string): ConvertMarkupResult {
   const diagnostics: CitationEngineDiagnostic[] = [];
@@ -191,7 +192,6 @@ export function convertCiteprocHtmlToNodes(htmlInput: string): ConvertMarkupResu
     const tagStart = htmlInput.indexOf("<", pos);
 
     if (tagStart === -1) {
-      // Remaining string is purely text
       const rawText = htmlInput.slice(pos);
       appendText(decodeHtmlEntities(rawText));
       break;
@@ -219,7 +219,6 @@ export function convertCiteprocHtmlToNodes(htmlInput: string): ConvertMarkupResu
     }
 
     if (parsed.isClosing) {
-      // Find matching tag in stack
       let matchIdx = -1;
       for (let i = stack.length - 1; i >= 0; i--) {
         if (stack[i].tag === parsed.tagName) {
@@ -229,13 +228,11 @@ export function convertCiteprocHtmlToNodes(htmlInput: string): ConvertMarkupResu
       }
 
       if (matchIdx !== -1) {
-        // Pop down to matchIdx
         stack.splice(matchIdx, stack.length - matchIdx);
       }
       continue;
     }
 
-    // Opening tag
     switch (parsed.tagName) {
       case "i": {
         const spanNode: CitationRenderSpan = {
@@ -340,13 +337,12 @@ export function convertCiteprocHtmlToNodes(htmlInput: string): ConvertMarkupResu
         break;
       }
       default: {
-        // Unknown or unexpected tag outside the allowlist
         diagnostics.push({
           code: "CSL_MARKUP_UNSUPPORTED",
           severity: "warning",
           message: `Unsupported markup tag '<${parsed.tagName}>' encountered in citeproc output.`,
         });
-        // We do not push a node for unknown markup; its inner text will safely be captured
+        // Unknown tags contribute text without creating markup nodes.
         stack.push({ tag: parsed.tagName, node: null, isContainer: true });
         break;
       }

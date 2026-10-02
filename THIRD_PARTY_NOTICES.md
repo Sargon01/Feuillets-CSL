@@ -8,10 +8,11 @@ Feuillets CSL incorporates or links against open-source software libraries. This
 
 - **Package**: `citeproc-ts`
 - **Version**: `0.2.5`
-- **Upstream**: https://github.com/cormacrelf/citeproc-ts
+- **Upstream**: https://codeberg.org/fiduswriter/citeproc-ts (as declared by the distributed `0.2.5` package)
 - **License**: `(CPAL-1.0 OR AGPL-3.0-or-later)`
 - **Licensing Branch Selected**: Feuillets CSL selects and complies with the **AGPL-3.0-or-later** option, which aligns with Feuillets CSL's project license (`AGPL-3.0-or-later`).
-- **Copyright**: Copyright (c) Frank Bennett and contributors (citeproc-js), Cormac Relf (citeproc-ts).
+- **Copyright**: Copyright (c) 2009-2019 Frank Bennett (as declared in the distributed engine header).
+- **Package Author and Contributors**: Johannes Wilm; Michael McMillan and Frank Bennett (as declared in the distributed `package.json`).
 
 ---
 
@@ -25,7 +26,33 @@ Feuillets CSL incorporates or links against open-source software libraries. This
   - The published `package.json` declares `"license": "ISC"`.
   - The upstream source repository and distributed `LICENSE` file declare the **MIT License**.
   - Both ISC and MIT are permissive open-source licenses that permit redistribution and bundling under the AGPL-3.0-or-later license of Feuillets CSL.
-- **Copyright**: Copyright (c) 2015-2024 Emiliano Heyns.
+- **Copyright**: Copyright (c) 2017 Derek P Sifford, 2019 Derek P Sifford & Emiliano Heyns (as declared in the distributed `LICENSE`).
+
+The distributed MIT license text is reproduced below:
+
+```text
+MIT License
+
+Copyright (c) 2017 Derek P Sifford, 2019 Derek P Sifford & Emiliano Heyns
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
 
 ---
 

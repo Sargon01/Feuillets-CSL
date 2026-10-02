@@ -1,8 +1,7 @@
 /**
  * Ambient type declaration for citeproc-ts.
  *
- * Types CSL export as `unknown` to ensure strict isolation behind
- * an explicit interface without exposing `any`.
+ * Keeps the untyped CSL export behind an explicit internal engine interface.
  */
 declare module "citeproc-ts" {
   export const CSL: unknown;

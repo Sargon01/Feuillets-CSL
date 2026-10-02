@@ -23,10 +23,10 @@ export default class FeuilletsCslPlugin extends Plugin {
     const engine = new CiteprocDocumentEngine(localeProvider);
     this.provider = new FeuilletsCslProvider(this.manifest.version, engine);
 
-    // 1. Try connecting immediately in case Feuillets was loaded first
+    // Register immediately if Feuillets is already available.
     this.connect();
 
-    // 2. Retry after all plugins are loaded (layout ready)
+    // Retry once all plugins have loaded.
     this.app.workspace.onLayoutReady(() => {
       if (this.unloaded) {
         return;
@@ -40,7 +40,7 @@ export default class FeuilletsCslPlugin extends Plugin {
       }
     });
 
-    // 3. Periodic lightweight check to handle cases where Feuillets is reloaded
+    // Re-register after a Feuillets reload replaces its provider registry.
     const CHECK_INTERVAL_MS = 4000;
     const intervalFn =
       typeof window !== "undefined" && typeof window.setInterval === "function"

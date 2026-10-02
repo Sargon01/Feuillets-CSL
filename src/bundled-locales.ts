@@ -5,8 +5,8 @@ import frFRLocale from "./locales/locales-fr-FR.xml";
 /**
  * Production CSL locale provider bundling official, full CSL locale definitions.
  *
- * In Lot 6, officially supports en-US and fr-FR with zero runtime downloads,
- * zero network access, and complete upstream metadata preserved.
+ * Official full en-US and fr-FR locales are bundled locally; no runtime
+ * download is required. Upstream metadata is preserved.
  *
  * Any unbundled locale returns null, resulting in deterministic fail-closed
  * CSL_LOCALE_UNAVAILABLE diagnostics.

@@ -13,7 +13,7 @@ function loadFixture(relPath: string): string {
   return fs.readFileSync(path.resolve(__dirname, relPath), "utf-8");
 }
 
-describe("Citeproc Note Contextual State (Lot 5)", () => {
+describe("Citeproc Note Context", () => {
   const enUsLocale = loadFixture("./fixtures/locales/locales-en-US.xml");
   const notePositionsStyle = loadFixture("./fixtures/styles/note-positions.csl");
 

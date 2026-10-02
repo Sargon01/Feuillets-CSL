@@ -52,7 +52,6 @@ async function runBenchmarkScenario(label, refCount, clusterCount) {
   const bibContent = generateBibtex(refCount);
   const bibSource = [{ id: "bench-bib", version: "v1", format: "bibtex", content: bibContent }];
 
-  // 1. Measure BibTeX adaptation
   const t0 = performance.now();
   const adaptRes = adaptBibliographies(bibSource);
   const t1 = performance.now();
@@ -62,7 +61,6 @@ async function runBenchmarkScenario(label, refCount, clusterCount) {
   const engine = new CiteprocDocumentEngine(localeProvider);
   const clusters = generateClusters(clusterCount, refCount);
 
-  // 2. Measure first cold render
   const initialReq = {
     documentId: `bench-${label}`,
     revision: 1,
@@ -79,7 +77,6 @@ async function runBenchmarkScenario(label, refCount, clusterCount) {
   const coldRenderTime = t3 - t2;
   console.log(`2. First render (cold engine)  : ${coldRenderTime.toFixed(2)} ms (${res1.citations.length} citations, ${res1.bibliography?.entries.length ?? 0} bib entries)`);
 
-  // 3. Measure append-only update (append 10 new clusters)
   const appendCount = Math.min(10, refCount);
   const appendedClusters = [
     ...clusters,
@@ -101,7 +98,6 @@ async function runBenchmarkScenario(label, refCount, clusterCount) {
   const appendTime = t5 - t4;
   console.log(`3. Append-only update (+${appendCount} items) : ${appendTime.toFixed(2)} ms (${resAppend.citations.length} citations)`);
 
-  // 4. Measure full rebuild (insertion in the middle)
   const middleInsertedClusters = [
     clusters[0],
     { id: "c_middle_inserted", items: [{ id: "ref_1", locator: "99", mode: "normal" }] },

@@ -82,7 +82,6 @@ describe("getFeuilletsCitationApi", () => {
   });
 
   it("strictly enforces apiVersion === 2 (v1 rejected, v2 accepted, v3 rejected)", () => {
-    // v1 is rejected cleanly
     const appV1 = createAppWithFeuillets({
       citations: {
         apiVersion: 1,
@@ -93,7 +92,6 @@ describe("getFeuilletsCitationApi", () => {
     });
     assert.equal(getFeuilletsCitationApi(appV1), null, "API v1 must be rejected cleanly");
 
-    // v2 is accepted
     const appV2 = createAppWithFeuillets({
       citations: {
         apiVersion: 2,
@@ -104,7 +102,6 @@ describe("getFeuilletsCitationApi", () => {
     });
     assert.ok(getFeuilletsCitationApi(appV2) !== null, "API v2 must be accepted");
 
-    // v3 is rejected cleanly
     const appV3 = createAppWithFeuillets({
       citations: {
         apiVersion: 3,

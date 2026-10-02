@@ -45,7 +45,7 @@ function reportViolation(scope, message) {
   console.error(`[AUDIT VIOLATION] [${scope}] ${message}`);
 }
 
-// 1. Audit package.json dependencies
+// Audit package.json dependencies
 console.log("--> Auditing package.json dependencies...");
 const pkgRaw = fs.readFileSync("package.json", "utf-8");
 const pkg = JSON.parse(pkgRaw);
@@ -63,7 +63,7 @@ for (const dep of allDeps) {
   }
 }
 
-// Strictly verify allowed runtime dependencies in Lot 4
+// Verify the allowed runtime dependency set.
 const expectedRuntimeDeps = ["@retorquere/bibtex-parser", "citeproc-ts"];
 for (const dep of runtimeDeps) {
   if (!expectedRuntimeDeps.includes(dep)) {
@@ -74,7 +74,7 @@ for (const dep of runtimeDeps) {
   }
 }
 
-// 2. Audit Source Code (src/ and main.ts)
+// Audit Source Code (src/ and main.ts)
 console.log("--> Auditing source files (src/ and main.ts)...");
 function collectFiles(dir) {
   const files = [];
@@ -120,7 +120,7 @@ for (const file of sourceFiles) {
   }
 }
 
-// 3. Audit main.js bundle if present
+// Audit main.js bundle if present
 if (fs.existsSync("main.js")) {
   console.log("--> Auditing main.js plugin bundle...");
   const mainContent = fs.readFileSync("main.js", "utf-8");
@@ -139,7 +139,7 @@ if (fs.existsSync("main.js")) {
   }
 }
 
-// 4. Audit .engine-audit/engine-probe.js bundle
+// Audit .engine-audit/engine-probe.js bundle
 const probePath = ".engine-audit/engine-probe.js";
 if (!fs.existsSync(probePath)) {
   console.log("--> Building engine probe for bundle inspection...");

@@ -1,5 +1,5 @@
 /**
- * Feuillets CSL — BibTeX / BibLaTeX to CSL-JSON Adapter (Lot 4)
+ * Feuillets CSL — BibTeX / BibLaTeX to CSL-JSON Adapter
  *
  * Converts raw bibliography sources into internal CSL-JSON item representations
  * using @retorquere/bibtex-parser.
@@ -8,7 +8,6 @@
  * - Every CSL item preserves exact citekey as `id`.
  * - No synthetic citekeys, no silent overwrite on duplicate citekeys.
  * - Unsupported BibTeX types generate UNSUPPORTED_BIBTEX_TYPE diagnostics.
- * - Zero `any`.
  */
 
 import { parse } from "@retorquere/bibtex-parser";
@@ -270,7 +269,7 @@ function convertEntryToCsl(
     type: cslType,
   };
 
-  // 1. Titles
+  // Titles
   const title = getFirstString(fields.title);
   if (title) {
     item.title = title;
@@ -295,7 +294,7 @@ function convertEntryToCsl(
     item["container-title"] = containerTitle;
   }
 
-  // 2. Creators
+  // Creators
   const author = mapCreators(fields.author);
   if (author) {
     item.author = author;
@@ -322,7 +321,7 @@ function convertEntryToCsl(
     item.translator = translator;
   }
 
-  // 3. Dates
+  // Dates
   const issuedParts =
     parseDateParts(fields.date, fields.year, fields.month) ??
     (parentFields
@@ -337,7 +336,7 @@ function convertEntryToCsl(
     item["original-date"] = { "date-parts": origdateParts };
   }
 
-  // 4. Volume, Issue, Pages
+  // Volume, Issue, Pages
   const volume = getFirstString(fields.volume);
   if (volume) {
     item.volume = volume;
@@ -353,7 +352,7 @@ function convertEntryToCsl(
     item.page = pages;
   }
 
-  // 5. Publisher & Location
+  // Publisher & Location
   const publisher =
     getJoinedString(
       fields.publisher ?? fields.organization ?? fields.institution
@@ -378,7 +377,7 @@ function convertEntryToCsl(
     item["publisher-place"] = location;
   }
 
-  // 6. Edition & Standard Identifiers
+  // Edition & Standard Identifiers
   const edition = getFirstString(fields.edition);
   if (edition) {
     item.edition = edition;
@@ -507,7 +506,6 @@ export function adaptBibliographies(
     }
   }
 
-  // Ensure no duplicate citekeys remain in the items store
   for (const dupKey of duplicateCitekeys) {
     items.delete(dupKey);
   }

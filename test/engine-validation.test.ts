@@ -41,7 +41,7 @@ function createValidRequest(
   };
 }
 
-describe("Engine Request Validation (Lot 3)", () => {
+describe("Citation Request Validation", () => {
   it("validates a minimal valid request successfully", () => {
     const raw = createValidRequest();
     const result = validateCitationDocumentRequest(raw);
@@ -222,9 +222,7 @@ describe("Engine Request Validation (Lot 3)", () => {
     }
   });
 
-  // -------------------------------------------------------------------------
   // Rejection Tests
-  // -------------------------------------------------------------------------
 
   it("rejects non-object root inputs", () => {
     const invalidRoots = [null, undefined, "string", 123, true, []];
@@ -577,24 +575,24 @@ describe("Engine Request Validation (Lot 3)", () => {
   });
 
   it("performs no silent normalization on invalid inputs", () => {
-    // 1. Revision as string is not coerced to integer
+    // Revision as string is not coerced to integer
     const stringRevisionReq = createValidRequest({ revision: "1" });
     const res1 = validateCitationDocumentRequest(stringRevisionReq);
     assert.equal(res1.valid, false);
 
-    // 2. Float revision is not rounded
+    // Float revision is not rounded
     const floatRevisionReq = createValidRequest({ revision: 2.7 });
     const res2 = validateCitationDocumentRequest(floatRevisionReq);
     assert.equal(res2.valid, false);
 
-    // 3. Invalid mode is not silently reset to 'normal'
+    // Invalid mode is not silently reset to 'normal'
     const invalidModeReq = createValidRequest({
       clusters: [{ id: "c1", items: [{ id: "k1", mode: "custom-mode" }] }],
     });
     const res3 = validateCitationDocumentRequest(invalidModeReq);
     assert.equal(res3.valid, false);
 
-    // 4. includeBibliography as truthy value is not coerced to boolean
+    // includeBibliography as truthy value is not coerced to boolean
     const truthyReq = createValidRequest({ includeBibliography: "yes" });
     const res4 = validateCitationDocumentRequest(truthyReq);
     assert.equal(res4.valid, false);

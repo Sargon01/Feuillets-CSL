@@ -94,8 +94,8 @@ const mockManifest = {
   isDesktopOnly: false,
 };
 
-describe("Plugin Lifecycle & Scenarios", () => {
-  it("CAS A: registers immediately when Feuillets is already loaded", () => {
+describe("Plugin Lifecycle", () => {
+  it("registers immediately when Feuillets is already loaded", () => {
     const registryState: MockRegistryState = {
       providers: new Map(),
       registerCallCount: 0,
@@ -117,7 +117,7 @@ describe("Plugin Lifecycle & Scenarios", () => {
     plugin.onunload();
   });
 
-  it("CAS B: handles Feuillets CSL loading before Feuillets with retry on layoutReady", () => {
+  it("handles Feuillets CSL loading before Feuillets with retry on layoutReady", () => {
     const registryState: MockRegistryState = {
       providers: new Map(),
       registerCallCount: 0,
@@ -125,22 +125,19 @@ describe("Plugin Lifecycle & Scenarios", () => {
     };
     const mockApi = createMockCitationApi(registryState);
 
-    // Initial state: Feuillets is not loaded yet
+    // Start with Feuillets absent, then make its API available before layout readiness.
     const mockApp = createMockApp({ withFeuillets: false });
     const plugin = new FeuilletsCslPlugin(mockApp as unknown as App, mockManifest);
 
     plugin.onload();
 
-    // First attempt failed cleanly without exceptions
     assert.equal(plugin.isConnected(), false);
     assert.equal(registryState.registerCallCount, 0);
 
-    // Feuillets becomes available later
     mockApp.plugins.plugins[FEUILLETS_PLUGIN_ID] = {
       api: { citations: mockApi },
     };
 
-    // Layout ready triggers retry
     mockApp.workspace.triggerLayoutReady();
 
     assert.equal(plugin.isConnected(), true);
@@ -150,7 +147,7 @@ describe("Plugin Lifecycle & Scenarios", () => {
     plugin.onunload();
   });
 
-  it("CAS C: reconnects automatically when Feuillets is reloaded with a new registry", () => {
+  it("reconnects automatically when Feuillets is reloaded with a new registry", () => {
     const state1: MockRegistryState = {
       providers: new Map(),
       registerCallCount: 0,
@@ -187,7 +184,7 @@ describe("Plugin Lifecycle & Scenarios", () => {
     plugin.onunload();
   });
 
-  it("CAS D: unregisters provider from current registry on onunload", () => {
+  it("unregisters provider from current registry on onunload", () => {
     const registryState: MockRegistryState = {
       providers: new Map(),
       registerCallCount: 0,
@@ -209,7 +206,7 @@ describe("Plugin Lifecycle & Scenarios", () => {
     assert.equal(registryState.providers.has(PROVIDER_ID), false);
   });
 
-  it("CAS E: Feuillets absent causes no exception", () => {
+  it("Feuillets absent causes no exception", () => {
     const mockApp = createMockApp({ withFeuillets: false });
     const plugin = new FeuilletsCslPlugin(mockApp as unknown as App, mockManifest);
 
@@ -223,7 +220,7 @@ describe("Plugin Lifecycle & Scenarios", () => {
     });
   });
 
-  it("CAS F: Feuillets without citation API causes no exception", () => {
+  it("Feuillets without citation API causes no exception", () => {
     const mockApp = createMockApp({ withFeuillets: true, citationApi: null });
     const plugin = new FeuilletsCslPlugin(mockApp as unknown as App, mockManifest);
 
@@ -237,7 +234,7 @@ describe("Plugin Lifecycle & Scenarios", () => {
     });
   });
 
-  it("CAS G: rejects connection when apiVersion !== 2", () => {
+  it("rejects connection when apiVersion !== 2", () => {
     const registryState: MockRegistryState = {
       providers: new Map(),
       registerCallCount: 0,
@@ -265,7 +262,7 @@ describe("Plugin Lifecycle & Scenarios", () => {
     plugin.onunload();
   });
 
-  it("CAS H: connect() is fully idempotent and does not re-register the same instance", () => {
+  it("connect() is fully idempotent and does not re-register the same instance", () => {
     const registryState: MockRegistryState = {
       providers: new Map(),
       registerCallCount: 0,
@@ -279,7 +276,6 @@ describe("Plugin Lifecycle & Scenarios", () => {
 
     assert.equal(registryState.registerCallCount, 1);
 
-    // Call connect() multiple times
     const secondConnect = plugin.connect();
     const thirdConnect = plugin.connect();
 
@@ -319,7 +315,6 @@ describe("Plugin Lifecycle & Scenarios", () => {
     };
     registryState.providers.set(PROVIDER_ID, newerProvider);
 
-    // Plugin 1 is unloaded
     plugin1.onunload();
 
     // unregisterProvider should NOT have been called because the active provider is not plugin1's

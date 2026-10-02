@@ -1,5 +1,5 @@
 /**
- * Feuillets CSL — Stateful Document Engine (Lot 5)
+ * Feuillets CSL — Stateful Document Engine
  *
  * Implements CitationDocumentEngine using citeproc-ts with:
  * - Persistent, isolated document sessions.
@@ -8,7 +8,6 @@
  * - Rich formatting converted to safe CitationRenderNode AST (zero raw HTML).
  * - Full disposeDocument() and dispose() lifecycle cleanup.
  * - Deterministic fail-closed error handling (REVISION_CONFLICT, STALE_REVISION, etc.).
- * - Zero `any`.
  */
 
 import { CSL } from "citeproc-ts";
@@ -113,7 +112,6 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
   async renderDocument(
     request: CitationDocumentRequest
   ): Promise<CitationDocumentResult> {
-    // 1. Validate request schema
     const validation = validateCitationDocumentRequest(request);
     if (!validation.valid) {
       const schemaDiagnostics: CitationEngineDiagnostic[] = validation.errors.map(
@@ -151,9 +149,7 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
     const newResourceSignature = computeResourceSignature(request);
     const newClusterSignatures = computeClusterSignatures(request.clusters);
 
-    // 2. Check session revision constraints
     if (existingSession) {
-      // 2A. Stale revision: request.revision < session.revision -> fail closed
       if (request.revision < existingSession.revision) {
         return {
           documentId,
@@ -170,7 +166,6 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
         };
       }
 
-      // 2B. Same revision check: request.revision === session.revision
       if (request.revision === existingSession.revision) {
         const resourcesMatch =
           newResourceSignature === existingSession.resourceSignature;
@@ -183,12 +178,10 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
         if (resourcesMatch && clustersMatch && existingSession.lastResult) {
           const cachedBibPresent =
             existingSession.lastResult.bibliography !== null;
-          // If includeBibliography flag is identical, return cached result
           if (request.includeBibliography === cachedBibPresent) {
             return cloneResult(existingSession.lastResult);
           }
-          // If only includeBibliography changed on identical revision, re-generate bibliography
-          // without rebuilding citation state
+          // A bibliography toggle does not change citation state, even at the same revision.
           return this.recomputeBibliographyOnly(
             existingSession,
             request,
@@ -197,7 +190,6 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
           );
         }
 
-        // Same revision with different content represents a revision conflict -> fail closed
         return {
           documentId,
           revision: request.revision,
@@ -214,7 +206,6 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
       }
     }
 
-    // 3. Parse and adapt bibliography sources (with cache on ordered set)
     const bibCacheKey = computeBibCacheKey(request.bibliographies);
     let adapterResult = this.bibCache.get(bibCacheKey);
     if (!adapterResult) {
@@ -237,7 +228,6 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
       };
     }
 
-    // 4. Verify all cluster citekeys exist
     let hasMissingCitekey = false;
     for (const cluster of request.clusters) {
       for (const item of cluster.items) {
@@ -264,7 +254,6 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
       };
     }
 
-    // 5. Verify requested locale
     const targetLocale = request.locale ? request.locale.trim() : "en-US";
     const primaryLocaleXml = this.localeProvider.retrieveLocale(targetLocale);
     if (!primaryLocaleXml) {
@@ -282,7 +271,6 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
       };
     }
 
-    // 6. Check if append-only incremental execution is valid
     const canAppendOnly =
       existingSession !== undefined &&
       newResourceSignature === existingSession.resourceSignature &&
@@ -294,13 +282,12 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
     let startIndex = 0;
 
     if (canAppendOnly) {
-      // Re-use active session engine
       engine = existingSession.engine;
       citationsPre = existingSession.citationsPre;
       clusterRenderings = existingSession.clusterRenderings;
       startIndex = existingSession.clusterSignatures.length;
 
-      // Update citeproc item registration with any new items
+      // Register the complete cited-item set so appended works can disambiguate earlier citations.
       const citedIds: string[] = [];
       const seenCitedIds = new Set<string>();
       for (const cluster of request.clusters) {
@@ -313,7 +300,6 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
       }
       engine.updateItems(citedIds);
     } else {
-      // Full rebuild: create fresh CSL Engine instance
       const sys: CiteprocSys = {
         retrieveLocale: (lang: string): string | boolean => {
           const loc = this.localeProvider.retrieveLocale(lang);
@@ -361,7 +347,6 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
       startIndex = 0;
     }
 
-    // 7. Process clusters from startIndex to end, capturing updates
     for (let i = startIndex; i < request.clusters.length; i++) {
       const cluster = request.clusters[i];
       const citeprocItems: CiteprocCitationItem[] = cluster.items.map((it) => {
@@ -424,7 +409,6 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
       citationsPre.push([cluster.id, cluster.noteIndex ?? 0]);
     }
 
-    // 8. Convert HTML renderings into safe CitationRenderNode ASTs
     const renderedCitations: RenderedCitation[] = request.clusters.map(
       (cluster: CitationClusterInput) => {
         const rawHtml = clusterRenderings.get(cluster.id) ?? "";
@@ -440,7 +424,6 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
       }
     );
 
-    // 9. Generate bibliography if requested
     let bibliography: RenderedBibliography | null = null;
     if (request.includeBibliography) {
       try {
@@ -521,7 +504,6 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
       diagnostics: allDiagnostics,
     };
 
-    // 10. Update session state
     this.sessionManager.setSession(documentId, {
       documentId,
       revision: request.revision,
