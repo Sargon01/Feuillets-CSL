@@ -228,11 +228,11 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
       };
     }
 
-    let hasMissingCitekey = false;
+    const unresolvedClusterIds = new Set<string>();
     for (const cluster of request.clusters) {
       for (const item of cluster.items) {
         if (!adapterResult.items.has(item.id)) {
-          hasMissingCitekey = true;
+          unresolvedClusterIds.add(cluster.id);
           allDiagnostics.push({
             code: "UNKNOWN_CITEKEY",
             severity: "error",
@@ -242,16 +242,6 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
           });
         }
       }
-    }
-
-    if (hasMissingCitekey) {
-      return {
-        documentId,
-        revision: request.revision,
-        citations: [],
-        bibliography: null,
-        diagnostics: allDiagnostics,
-      };
     }
 
     const targetLocale = request.locale ? request.locale.trim() : "en-US";
@@ -291,6 +281,7 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
       const citedIds: string[] = [];
       const seenCitedIds = new Set<string>();
       for (const cluster of request.clusters) {
+        if (unresolvedClusterIds.has(cluster.id)) continue;
         for (const item of cluster.items) {
           if (!seenCitedIds.has(item.id)) {
             seenCitedIds.add(item.id);
@@ -333,6 +324,7 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
       const citedIds: string[] = [];
       const seenCitedIds = new Set<string>();
       for (const cluster of request.clusters) {
+        if (unresolvedClusterIds.has(cluster.id)) continue;
         for (const item of cluster.items) {
           if (!seenCitedIds.has(item.id)) {
             seenCitedIds.add(item.id);
@@ -349,6 +341,13 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
 
     for (let i = startIndex; i < request.clusters.length; i++) {
       const cluster = request.clusters[i];
+      // citeproc cannot safely process empty clusters with note-position styles.
+      // Omit the whole unresolved cluster, retaining original note indices and the
+      // ordered state of resolved clusters. Unknown works never enter numbering,
+      // disambiguation or bibliography; no bibliographic placeholder is invented.
+      // Position decisions can only use resolved citations, so same-note adjacency
+      // cannot account for the bibliographic identity of an unresolved cluster.
+      if (unresolvedClusterIds.has(cluster.id)) continue;
       const citeprocItems: CiteprocCitationItem[] = cluster.items.map((it) => {
         const mapped: CiteprocCitationItem = {
           id: it.id,
@@ -409,7 +408,9 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
       citationsPre.push([cluster.id, cluster.noteIndex ?? 0]);
     }
 
-    const renderedCitations: RenderedCitation[] = request.clusters.map(
+    const renderedCitations: RenderedCitation[] = request.clusters.filter(
+      (cluster) => !unresolvedClusterIds.has(cluster.id)
+    ).map(
       (cluster: CitationClusterInput) => {
         const rawHtml = clusterRenderings.get(cluster.id) ?? "";
         const converted = convertCiteprocHtmlToNodes(rawHtml);

@@ -38,6 +38,34 @@ describe("Citeproc Note Context", () => {
 }
 `;
 
+  it("preserves original note indices and shortened notes around unresolved whole clusters", async () => {
+    const engine = new CiteprocDocumentEngine(localeProvider);
+    const request: CitationDocumentRequest = {
+      documentId: "unknown-note", revision: 1,
+      style: { id: "positions", version: "1", xml: notePositionsStyle },
+      bibliographies: [{ id: "bib", version: "1", format: "bibtex", content: bibContent }],
+      clusters: [
+        { id: "first", noteIndex: 1, items: [{ id: "kant" }] },
+        { id: "unknown", noteIndex: 2, items: [{ id: "hume" }, { id: "missing9999" }] },
+        { id: "after", noteIndex: 3, items: [{ id: "kant" }] },
+        { id: "repeat", noteIndex: 4, items: [{ id: "kant" }] },
+      ], includeBibliography: true,
+    };
+    const result = await engine.renderDocument(request);
+    assert.deepEqual(result.citations.map((citation) => citation.clusterId), ["first", "after", "repeat"], JSON.stringify(result.diagnostics));
+    assert.match(result.citations[0].plainText, /Immanuel Kant/);
+    assert.match(result.citations[1].plainText, /Kant/);
+    assert.doesNotMatch(result.citations[1].plainText, /ibid/i);
+    assert.match(result.citations[2].plainText, /ibid/i);
+    assert.deepEqual(result.bibliography?.entries.flatMap((entry) => entry.itemIds), ["kant"]);
+    const appended = await engine.renderDocument({ ...request, revision: 2,
+      clusters: [...request.clusters, { id: "append", noteIndex: 5, items: [{ id: "kant" }] }] });
+    assert.match(appended.citations[3].plainText, /ibid/i);
+    const rebuiltEngine = new CiteprocDocumentEngine(localeProvider);
+    assert.deepEqual(appended, await rebuiltEngine.renderDocument({ ...request, revision: 2,
+      clusters: [...request.clusters, { id: "append", noteIndex: 5, items: [{ id: "kant" }] }] }));
+  });
+
   it("evaluates contextual note positions: first, ibid, ibid-with-locator, and subsequent", async () => {
     const engine = new CiteprocDocumentEngine(localeProvider);
 

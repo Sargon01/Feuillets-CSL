@@ -41,7 +41,7 @@ Configure the bibliography and CSL style in **Feuillets**. There is no separate 
 
 The supported bibliography input is **BibTeX/BibLaTeX content**, processed through the bundled adapter. JSON bibliographies are not supported.
 
-Citekeys must match bibliography entries exactly. Duplicate keys are treated as ambiguous, and unknown keys or invalid entries can prevent citation rendering. Correct the bibliography or citation rather than relying on an automatic substitute.
+Citekeys must match bibliography entries exactly. An unknown key leaves its entire citation cluster unresolved, with an error diagnostic identifying the cluster and key; other valid clusters still render. No item is invented, and a group containing an unknown key is never rendered partially. Duplicate keys and invalid bibliography entries remain global failures.
 
 ## Locales
 
@@ -56,6 +56,8 @@ Feuillets CSL processes the resources supplied by Feuillets locally. It requires
 ## Fail-closed behavior
 
 When a citation cannot be safely processed, Feuillets preserves the raw citation syntax. This safety fallback avoids inventing a citation or silently substituting another reference or language.
+
+Unknown keys affect only their whole cluster. Missing providers or resources, invalid CSL styles, inconsistent results and engine failures preserve raw syntax for the complete document. The engine excludes unresolved clusters from citeproc, retaining the original note indices and the ordered state of resolved citations. Position decisions within the same note use only resolved citations; the engine cannot infer an unknown work's bibliographic identity.
 
 ## Installation
 

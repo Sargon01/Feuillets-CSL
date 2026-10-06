@@ -213,6 +213,30 @@ describe("Citeproc Document Engine", () => {
     assert.ok(result.citations[1].plainText.includes("B. Smith") || result.citations[1].plainText.includes("Bob"));
   });
 
+  it("preserves disambiguation when an unresolved group separates ambiguous known works", async () => {
+    const engine = new CiteprocDocumentEngine(localeProvider);
+    const request: CitationDocumentRequest = {
+      documentId: "partial-disambiguation", revision: 1,
+      style: { id: "author-date", version: "1", xml: authorDateStyle },
+      bibliographies: [{ id: "bib", version: "1", format: "bibtex", content:
+        "@book{smith_a, title={Book A}, author={Smith, Alice}, year={2020}}\n@book{smith_b, title={Book B}, author={Smith, Bob}, year={2020}}" }],
+      clusters: [
+        { id: "a", items: [{ id: "smith_a" }] },
+        { id: "b", items: [{ id: "smith_b" }, { id: "missing9999" }] },
+        { id: "c", items: [{ id: "smith_b" }] },
+      ], includeBibliography: true,
+    };
+    const result = await engine.renderDocument(request);
+    const referenceEngine = new CiteprocDocumentEngine(localeProvider);
+    const reference = await referenceEngine.renderDocument({ ...request,
+      clusters: request.clusters.filter((cluster) => cluster.id !== "b") });
+    assert.deepEqual(result.citations, reference.citations);
+    assert.deepEqual(result.bibliography, reference.bibliography);
+    assert.equal(result.diagnostics.length, 1);
+    assert.ok(result.citations[0].plainText.includes("A. Smith") || result.citations[0].plainText.includes("Alice"));
+    assert.ok(result.citations[1].plainText.includes("B. Smith") || result.citations[1].plainText.includes("Bob"));
+  });
+
   it("supports citation item locators, prefixes, suffixes, and suppress-author mode", async () => {
     const engine = new CiteprocDocumentEngine(localeProvider);
     const bibContent = `@book{russell1910, title={Principia Mathematica}, author={Russell, Bertrand}, year={1910}}`;
@@ -361,7 +385,7 @@ describe("Citeproc Document Engine", () => {
     assert.ok(result.diagnostics.some((d) => d.code === "CSL_LOCALE_UNAVAILABLE" && d.severity === "error"));
   });
 
-  it("fails closed when a citekey is not found in bibliography sources", async () => {
+  it("leaves an unknown cluster unresolved without creating a bibliography item", async () => {
     const engine = new CiteprocDocumentEngine(localeProvider);
     const request: CitationDocumentRequest = {
       documentId: "doc-unknown-key",
@@ -385,7 +409,7 @@ describe("Citeproc Document Engine", () => {
 
     const result = await engine.renderDocument(request);
     assert.equal(result.citations.length, 0);
-    assert.equal(result.bibliography, null);
+    assert.deepEqual(result.bibliography?.entries, []);
 
     const diag = result.diagnostics.find((d) => d.code === "UNKNOWN_CITEKEY");
     assert.ok(diag);
@@ -393,6 +417,41 @@ describe("Citeproc Document Engine", () => {
     assert.equal(diag.clusterId, "c1");
     assert.equal(diag.citekey, "nonExistentKey");
   });
+
+  for (const grouped of [false, true]) {
+    it(`renders valid clusters around an unknown ${grouped ? "group" : "citation"} and preserves incremental state`, async () => {
+      const engine = new CiteprocDocumentEngine(localeProvider);
+      const request: CitationDocumentRequest = {
+        documentId: "partial", revision: 1,
+        style: { id: "numeric", version: "1", xml: numericStyle },
+        bibliographies: [{ id: "bib", version: "1", format: "bibtex",
+          content: "@book{known2026, title={Known}, author={Smith, John}, year={2026}}" }],
+        clusters: [
+          { id: "a", items: [{ id: "known2026" }] },
+          { id: "b", items: grouped ? [{ id: "known2026" }, { id: "missing9999" }] : [{ id: "missing9999" }] },
+          { id: "c", items: [{ id: "known2026" }] },
+        ], includeBibliography: true,
+      };
+      const result = await engine.renderDocument(request);
+      assert.deepEqual(result.citations.map((citation) => citation.clusterId), ["a", "c"]);
+      assert.ok(result.citations.every((citation) => citation.plainText.includes("1")));
+      assert.deepEqual(result.diagnostics.map(({ code, severity, clusterId, citekey }) =>
+        ({ code, severity, clusterId, citekey })),
+      [{ code: "UNKNOWN_CITEKEY", severity: "error", clusterId: "b", citekey: "missing9999" }]);
+      assert.deepEqual(result.bibliography?.entries.map((entry) => entry.itemIds), [["known2026"]]);
+      assert.deepEqual(await engine.renderDocument(request), result);
+      const toggled = await engine.renderDocument({ ...request, includeBibliography: false });
+      assert.deepEqual(toggled.citations, result.citations);
+      assert.deepEqual(toggled.diagnostics, result.diagnostics);
+      const appended = await engine.renderDocument({ ...request, revision: 2,
+        clusters: [...request.clusters, { id: "d", items: [{ id: "known2026" }] }] });
+      assert.deepEqual(appended.citations.map((citation) => citation.clusterId), ["a", "c", "d"]);
+      const repaired = await engine.renderDocument({ ...request, revision: 3,
+        clusters: request.clusters.map((cluster) => ({ ...cluster, items: [{ id: "known2026" }] })) });
+      assert.equal(repaired.citations.length, 3);
+      assert.deepEqual(repaired.diagnostics, []);
+    });
+  }
 
   it("fails closed when CSL style XML is invalid without throwing an unhandled exception", async () => {
     const engine = new CiteprocDocumentEngine(localeProvider);
