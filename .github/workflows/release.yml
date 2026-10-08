@@ -3,8 +3,7 @@ name: Release Plugin
 on:
   push:
     tags:
-      - '*'
-  workflow_dispatch:
+      - '*.*.*'
 
 permissions:
   contents: write
@@ -28,6 +27,27 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Verify release metadata
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          if [[ ! "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid release tag: $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+          TAG="$TAG" node -e '
+            const fs = require("node:fs");
+            const tag = process.env.TAG;
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            const manifest = JSON.parse(fs.readFileSync("manifest.json", "utf8"));
+            const versions = JSON.parse(fs.readFileSync("versions.json", "utf8"));
+            if (pkg.version !== tag || manifest.version !== tag) {
+              throw new Error("Release version mismatch.");
+            }
+            if (versions[tag] !== manifest.minAppVersion) {
+              throw new Error("versions.json mismatch.");
+            }
+          '
 
       - name: Run typecheck
         run: npm run typecheck
