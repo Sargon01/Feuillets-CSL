@@ -24,7 +24,7 @@ import type {
   RenderedCitation,
 } from "./engine-contract.ts";
 import { validateCitationDocumentRequest } from "./engine-validation.ts";
-import { adaptBibliographies } from "./bibtex-adapter.ts";
+import { adaptBibliographies, BIBTEX_ENTRY_DIAGNOSTIC_CODES } from "./bibtex-adapter.ts";
 import type { BibtexAdapterResult, CslItem } from "./bibtex-adapter.ts";
 import {
   DocumentSessionManager,
@@ -214,7 +214,12 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
     }
 
     const allDiagnostics: CitationEngineDiagnostic[] = [
-      ...adapterResult.diagnostics,
+      // Preserve entry diagnostics as library warnings; a cited rejected entry
+      // gets an explicit error for every affected cluster below.
+      ...adapterResult.diagnostics.map((diagnostic): CitationEngineDiagnostic =>
+        diagnostic.severity === "error" && BIBTEX_ENTRY_DIAGNOSTIC_CODES.has(diagnostic.code)
+          ? { ...diagnostic, severity: "warning" }
+          : { ...diagnostic }),
     ];
 
     const hasFatalBibError = allDiagnostics.some((d) => d.severity === "error");
@@ -229,11 +234,25 @@ export class CiteprocDocumentEngine implements CitationDocumentEngine {
     }
 
     const unresolvedClusterIds = new Set<string>();
+    const entryFailures = new Map<string, CitationEngineDiagnostic>();
+    for (const diagnostic of adapterResult.diagnostics) {
+      if (diagnostic.severity === "error" && diagnostic.citekey
+        && BIBTEX_ENTRY_DIAGNOSTIC_CODES.has(diagnostic.code)) {
+        // Ambiguity takes precedence over the type of one duplicate occurrence.
+        if (!entryFailures.has(diagnostic.citekey) || diagnostic.code === "DUPLICATE_CITEKEY") {
+          entryFailures.set(diagnostic.citekey, diagnostic);
+        }
+      }
+    }
     for (const cluster of request.clusters) {
       for (const item of cluster.items) {
         if (!adapterResult.items.has(item.id)) {
           unresolvedClusterIds.add(cluster.id);
-          allDiagnostics.push({
+          const entryFailure = entryFailures.get(item.id);
+          allDiagnostics.push(entryFailure ? {
+            ...entryFailure,
+            clusterId: cluster.id,
+          } : {
             code: "UNKNOWN_CITEKEY",
             severity: "error",
             clusterId: cluster.id,

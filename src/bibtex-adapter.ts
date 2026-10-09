@@ -53,12 +53,18 @@ export interface CslItem {
   ISBN?: string;
   ISSN?: string;
   language?: string;
+  genre?: string;
 }
 
 export interface BibtexAdapterResult {
   items: Map<string, CslItem>;
   diagnostics: CitationEngineDiagnostic[];
 }
+
+/** Entry failures can be isolated; source/parser failures remain document errors. */
+export const BIBTEX_ENTRY_DIAGNOSTIC_CODES: ReadonlySet<string> = new Set([
+  "MISSING_CITEKEY", "UNSUPPORTED_BIBTEX_TYPE", "DUPLICATE_CITEKEY", "AMBIGUOUS_CROSSREF", "CYCLIC_CROSSREF",
+]);
 
 const BIBTEX_TYPE_TO_CSL: Readonly<Record<string, string>> = {
   article: "article-journal",
@@ -75,6 +81,30 @@ const BIBTEX_TYPE_TO_CSL: Readonly<Record<string, string>> = {
   report: "report",
   online: "webpage",
   www: "webpage",
+  // A URL alone does not make a miscellaneous work a webpage.
+  misc: "document",
+  booklet: "pamphlet",
+  manual: "report",
+  unpublished: "manuscript",
+  mvbook: "book",
+  collection: "book",
+  mvcollection: "book",
+  reference: "book",
+  mvreference: "book",
+  inreference: "entry",
+  software: "software",
+  dataset: "dataset",
+  patent: "patent",
+  artwork: "graphic",
+  image: "graphic",
+  movie: "motion_picture",
+  video: "motion_picture",
+  audio: "song",
+  music: "song",
+  performance: "performance",
+  letter: "personal_communication",
+  jurisdiction: "legal_case",
+  legislation: "legislation",
 };
 
 const MONTH_NAMES: Readonly<Record<string, number>> = {
@@ -244,7 +274,8 @@ function convertEntryToCsl(
   }
 
   const rawType = (entry.type || "").toLowerCase().trim();
-  const cslType = BIBTEX_TYPE_TO_CSL[rawType];
+  const cslType = Object.prototype.hasOwnProperty.call(BIBTEX_TYPE_TO_CSL, rawType)
+    ? BIBTEX_TYPE_TO_CSL[rawType] : undefined;
   if (!cslType) {
     diagnostics.push({
       code: "UNSUPPORTED_BIBTEX_TYPE",
@@ -256,13 +287,26 @@ function convertEntryToCsl(
   }
 
   const fields = entry.fields;
-  const crossrefKey =
-    typeof fields.crossref === "string"
-      ? fields.crossref.trim().toLowerCase()
-      : undefined;
-  const parentEntry =
-    crossrefKey && entryByKey ? entryByKey.get(crossrefKey) : undefined;
-  const parentFields = parentEntry ? parentEntry.fields : undefined;
+  // Parsing each source separately cannot apply inheritance across files.
+  // Resolve the existing supported fallback fields from the nearest ancestor.
+  // Ambiguity and cycles are rejected before conversion.
+  const parentChain: Entry[] = [];
+  const visited = new Set<string>();
+  let parentKey = getFirstString(fields.crossref)?.toUpperCase();
+  while (parentKey && entryByKey && !visited.has(parentKey)) {
+    visited.add(parentKey);
+    const parent = entryByKey.get(parentKey);
+    if (!parent) break;
+    parentChain.push(parent);
+    parentKey = getFirstString(parent.fields.crossref)?.toUpperCase();
+  }
+  const parentValue = <T>(read: (fields: Entry["fields"]) => T | undefined): T | undefined => {
+    for (const parent of parentChain) {
+      const value = read(parent.fields);
+      if (value !== undefined) return value;
+    }
+    return undefined;
+  };
 
   const item: CslItem = {
     id: citekey,
@@ -284,12 +328,8 @@ function convertEntryToCsl(
     getFirstString(fields.journaltitle) ??
     getFirstString(fields.journal) ??
     getFirstString(fields.booktitle) ??
-    (parentFields
-      ? getFirstString(parentFields.journaltitle) ??
-        getFirstString(parentFields.journal) ??
-        getFirstString(parentFields.booktitle) ??
-        getFirstString(parentFields.title)
-      : undefined);
+    parentValue((parent) => getFirstString(parent.journaltitle) ??
+      getFirstString(parent.journal) ?? getFirstString(parent.booktitle) ?? getFirstString(parent.title));
   if (containerTitle) {
     item["container-title"] = containerTitle;
   }
@@ -304,14 +344,7 @@ function convertEntryToCsl(
     mapCreators(
       fields.editor ?? fields.editors ?? fields.editora ?? fields.editorb
     ) ??
-    (parentFields
-      ? mapCreators(
-          parentFields.editor ??
-            parentFields.editors ??
-            parentFields.editora ??
-            parentFields.editorb
-        )
-      : undefined);
+    parentValue((parent) => mapCreators(parent.editor ?? parent.editors ?? parent.editora ?? parent.editorb));
   if (editor) {
     item.editor = editor;
   }
@@ -324,9 +357,7 @@ function convertEntryToCsl(
   // Dates
   const issuedParts =
     parseDateParts(fields.date, fields.year, fields.month) ??
-    (parentFields
-      ? parseDateParts(parentFields.date, parentFields.year, parentFields.month)
-      : undefined);
+    parentValue((parent) => parseDateParts(parent.date, parent.year, parent.month));
   if (issuedParts) {
     item.issued = { "date-parts": issuedParts };
   }
@@ -354,25 +385,18 @@ function convertEntryToCsl(
 
   // Publisher & Location
   const publisher =
-    getJoinedString(
-      fields.publisher ?? fields.organization ?? fields.institution
-    ) ??
-    (parentFields
-      ? getJoinedString(
-          parentFields.publisher ??
-            parentFields.organization ??
-            parentFields.institution
-        )
-      : undefined);
+    getJoinedString(fields.publisher) ?? getJoinedString(fields.organization) ??
+    getJoinedString(fields.institution) ??
+    (cslType === "thesis" ? getJoinedString(fields.school) : undefined) ??
+    parentValue((parent) => getJoinedString(parent.publisher) ?? getJoinedString(parent.organization) ??
+      getJoinedString(parent.institution) ?? (cslType === "thesis" ? getJoinedString(parent.school) : undefined));
   if (publisher) {
     item.publisher = publisher;
   }
 
   const location =
     getJoinedString(fields.location ?? fields.address) ??
-    (parentFields
-      ? getJoinedString(parentFields.location ?? parentFields.address)
-      : undefined);
+    parentValue((parent) => getJoinedString(parent.location) ?? getJoinedString(parent.address));
   if (location) {
     item["publisher-place"] = location;
   }
@@ -409,6 +433,10 @@ function convertEntryToCsl(
     item.language = language;
   }
 
+  // BibTeX/BibLaTeX's field `type` describes the work, not its entry type.
+  const genre = getFirstString(fields.type);
+  if (genre) item.genre = genre;
+
   return item;
 }
 
@@ -429,6 +457,7 @@ export function adaptBibliographies(
 
   const parsedEntries: { entry: Entry; sourceId: string }[] = [];
   const entryByKey = new Map<string, Entry>();
+  const ambiguousParentKeys = new Set<string>();
 
   for (const source of sources) {
     const rawFormat: string = source.format;
@@ -470,11 +499,31 @@ export function adaptBibliographies(
     for (const entry of parsedLibrary.entries) {
       const citekey = entry.key ? entry.key.trim() : "";
       if (citekey) {
-        entryByKey.set(citekey.toLowerCase(), entry);
+        // Match the parser's folding, including Unicode expansions (ß -> SS).
+        const parentKey = citekey.toUpperCase();
+        if (entryByKey.has(parentKey)) ambiguousParentKeys.add(parentKey);
+        entryByKey.set(parentKey, entry);
       }
       parsedEntries.push({ entry, sourceId: source.id });
     }
   }
+
+  // The parser applies crossrefs before adaptation, so merely deleting a
+  // duplicate parent is insufficient: inherited fields may already be present.
+  // Follow the full dependency chain, including parents in other sources.
+  const crossrefFailure = (entry: Entry): "AMBIGUOUS_CROSSREF" | "CYCLIC_CROSSREF" | undefined => {
+    const visited = new Set<string>();
+    let current: Entry | undefined = entry;
+    while (current) {
+      const parent = getFirstString(current.fields.crossref)?.toUpperCase();
+      if (!parent) return undefined;
+      if (ambiguousParentKeys.has(parent)) return "AMBIGUOUS_CROSSREF";
+      if (visited.has(parent)) return "CYCLIC_CROSSREF";
+      visited.add(parent);
+      current = entryByKey.get(parent);
+    }
+    return undefined;
+  };
 
   for (const { entry, sourceId } of parsedEntries) {
     const citekey = entry.key ? entry.key.trim() : "";
@@ -500,6 +549,16 @@ export function adaptBibliographies(
     }
 
     seenCitekeys.add(citekey);
+    const failure = crossrefFailure(entry);
+    if (failure) {
+      diagnostics.push({
+        code: failure,
+        severity: "error",
+        citekey,
+        message: `Citekey '${citekey}' depends on ${failure === "AMBIGUOUS_CROSSREF" ? "an ambiguous" : "a cyclic"} crossref parent.`,
+      });
+      continue;
+    }
     const cslItem = convertEntryToCsl(entry, diagnostics, entryByKey);
     if (cslItem) {
       items.set(cslItem.id, cslItem);

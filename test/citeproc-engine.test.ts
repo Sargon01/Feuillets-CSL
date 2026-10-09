@@ -481,7 +481,7 @@ describe("Citeproc Document Engine", () => {
     assert.ok(result.diagnostics.some((d) => d.code === "CSL_STYLE_ERROR" && d.severity === "error"));
   });
 
-  it("fails closed when duplicate citekeys exist across bibliography sources", async () => {
+  it("leaves a cited duplicate unresolved across bibliography sources", async () => {
     const engine = new CiteprocDocumentEngine(localeProvider);
     const request: CitationDocumentRequest = {
       documentId: "doc-dup",
@@ -511,7 +511,7 @@ describe("Citeproc Document Engine", () => {
 
     const result = await engine.renderDocument(request);
     assert.equal(result.citations.length, 0);
-    assert.equal(result.bibliography, null);
+    assert.deepEqual(result.bibliography?.entries, []);
     assert.ok(result.diagnostics.some((d) => d.code === "DUPLICATE_CITEKEY" && d.severity === "error"));
   });
 

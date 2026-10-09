@@ -282,6 +282,11 @@ export type CitationDiagnosticSeverity =
  * Diagnostic produced by the citation engine during processing.
  *
  * Technical diagnostics intended for development, debugging, and logging.
+ * Rejected, unused bibliography entries are reported as warnings. A cited
+ * rejected or unknown key produces an error with both citekey and clusterId;
+ * its whole cluster is omitted, so the host preserves its original Markdown.
+ * Recoverable codes: UNKNOWN_CITEKEY, DUPLICATE_CITEKEY,
+ * UNSUPPORTED_BIBTEX_TYPE, AMBIGUOUS_CROSSREF and CYCLIC_CROSSREF. Other errors remain fatal.
  */
 export interface CitationEngineDiagnostic {
   code: string;
