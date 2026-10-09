@@ -8,7 +8,7 @@ Feuillets CSL is the optional citation engine companion for [Feuillets](https://
 - Feuillets **3.4.0 or later**, installed and enabled.
 - Feuillets CSL enabled alongside Feuillets.
 
-The public compatibility target is **Feuillets 3.4.0 or later**. Check the [Feuillets releases](https://github.com/Sargon01/Feuillets/releases) and [Feuillets CSL releases](https://github.com/Sargon01/Feuillets-CSL/releases) for available downloads.
+API v2 discovery is available in Feuillets **3.4.0 or later**, but API discovery alone does not guarantee compatibility with every diagnostic. Full isolation of cited incompatible, duplicate or cyclic references requires a Feuillets release containing the recoverable-diagnostics fix (`6ed59b6`). The published **3.5.2** release does not contain that fix. Update Feuillets first, then the companion; no bibliography replacement is required. See the [tested compatibility matrix](docs/compatibility.md). Check the [Feuillets releases](https://github.com/Sargon01/Feuillets/releases) and [Feuillets CSL releases](https://github.com/Sargon01/Feuillets-CSL/releases) for available downloads.
 
 Feuillets CSL is optional: Feuillets remains usable without it. Install and enable both plugins to use native CSL rendering.
 
@@ -41,7 +41,7 @@ Configure the bibliography and CSL style in **Feuillets**. There is no separate 
 
 The supported bibliography input is **BibTeX/BibLaTeX content**, processed through the bundled adapter. JSON bibliographies are not supported.
 
-Citekeys must match bibliography entries exactly. An unknown key leaves its entire citation cluster unresolved, with an error diagnostic identifying the cluster and key; other valid clusters still render. No item is invented, and a group containing an unknown key is never rendered partially. Duplicate keys and invalid bibliography entries remain global failures.
+Citekeys must match bibliography entries exactly. An unknown, incompatible, ambiguous or cyclic reference leaves its entire citation cluster unresolved, with an error diagnostic identifying the cluster and key; other valid clusters still render with a compatible Feuillets host. Unused rejected entries produce library warnings. No item is invented, and a group containing a rejected key is never rendered partially. Genuine source, style or engine failures remain global failures.
 
 ## Locales
 
@@ -57,7 +57,7 @@ Feuillets CSL processes the resources supplied by Feuillets locally. It requires
 
 When a citation cannot be safely processed, Feuillets preserves the raw citation syntax. This safety fallback avoids inventing a citation or silently substituting another reference or language.
 
-Unknown keys affect only their whole cluster. Missing providers or resources, invalid CSL styles, inconsistent results and engine failures preserve raw syntax for the complete document. The engine excludes unresolved clusters from citeproc, retaining the original note indices and the ordered state of resolved citations. Position decisions within the same note use only resolved citations; the engine cannot infer an unknown work's bibliographic identity.
+Unknown and rejected keys affect only their whole cluster with a compatible host. Missing providers or resources, invalid CSL styles, inconsistent results and engine failures preserve raw syntax for the complete document. The engine excludes unresolved clusters from citeproc, retaining the original note indices and the ordered state of resolved citations. Position decisions within the same note use only resolved citations; the engine cannot infer an unknown work's bibliographic identity.
 
 ## Installation
 
@@ -67,7 +67,7 @@ After the plugin is published in the Obsidian Community directory, open **Settin
 
 ### Manual installation
 
-1. Install and enable Feuillets **3.4.0 or later**.
+1. Install and enable Feuillets **3.4.0 or later**. For full bibliography error isolation, use a release containing the recoverable-diagnostics fix described in the [compatibility matrix](docs/compatibility.md).
 2. Download `main.js` and `manifest.json` from a [Feuillets CSL GitHub release](https://github.com/Sargon01/Feuillets-CSL/releases).
 3. Create the folder `.obsidian/plugins/feuillets-csl/` inside your Vault and place both files there.
 4. Reload Obsidian and enable **Feuillets CSL** in Community plugins.
@@ -85,6 +85,7 @@ After the plugin is published in the Obsidian Community directory, open **Settin
 If citations remain raw, check that:
 
 - Both plugins are enabled and Feuillets is **3.4.0 or later**.
+- For partial rendering around cited incompatible, duplicate or cyclic references, Feuillets also includes the recoverable-diagnostics fix. Published Feuillets 3.5.2 rejects those new errors and keeps the complete document raw. Update Feuillets before updating the companion.
 - CSL citation rendering is selected for the relevant Feuillets surface or export.
 - The active project has a bibliography and CSL style configured in Feuillets, and both files exist and are valid.
 - Each citekey exists exactly once in the supplied bibliography, with matching spelling and case.
@@ -124,6 +125,8 @@ npm run audit:network
 ### Engine testing tools
 
 `npm run probe:engine` builds an isolated browser engine bundle in the ignored `.engine-audit/` directory for dependency inspection and size reporting. `npm run benchmark:engine` measures bibliography adaptation, initial rendering, incremental appends, and rebuilds. The test and benchmark tooling requires a Node.js version with native TypeScript support and `node:module.registerHooks` support for the test loader.
+
+CI and release checks also run Feuillets' mandatory `npm run test:csl-integration` against this checkout. Configure repository variable `FEUILLETS_HOST_REF` with a full, reviewed, remotely available Feuillets commit SHA containing the integration gate. A missing pin, host, browser, skipped integration test or failed assertion fails the check. Before releasing the companion, that pin must identify a publicly released Feuillets commit. See [compatibility and integration](docs/compatibility.md).
 
 ## License and third-party software
 

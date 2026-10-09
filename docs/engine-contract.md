@@ -28,7 +28,7 @@ Feuillets CSL never reads the Obsidian Vault, discovers files, interprets resour
 - The complete ordered `clusters` sequence for that document revision.
 - `includeBibliography`, which controls bibliography generation.
 
-The bundled adapter processes BibTeX/BibLaTeX content into internal CSL items. It preserves exact citekeys, rejects unsupported entry types, and removes duplicate keys rather than choosing a first or last occurrence. Unknown referenced keys and fatal bibliography diagnostics prevent document rendering.
+The bundled adapter processes BibTeX/BibLaTeX content into internal CSL items. It preserves exact citekeys, rejects unsupported entry types, and removes duplicate keys rather than choosing a first or last occurrence. Unknown or rejected referenced keys leave only their whole cluster unresolved; genuinely fatal bibliography-source diagnostics prevent document rendering.
 
 Clusters have unique IDs and non-empty, order-sensitive item arrays. Items carry exact citekeys, optional prefixes, suffixes, locators and locator labels, and the modes `normal`, `suppress-author`, `author-only`, or `composite`. Optional `noteIndex` values are non-negative integers. Feuillets supplies document positions and note context; source offsets are outside this contract.
 
@@ -85,7 +85,7 @@ The engine uses citeproc's HTML output internally, then converts supported forma
 
 The production locale provider bundles the full official `en-US` and `fr-FR` locales. When the request omits a locale, the engine uses `en-US`. An unsupported requested locale returns `CSL_LOCALE_UNAVAILABLE` without silently switching to another language. Styles and runtime locales are separate resources.
 
-Fatal validation, revision, bibliography, citekey, locale, style-parsing, and citation-processing failures return diagnostics rather than substitute citations. Warning diagnostics can accompany usable output, for example when unsupported citeproc markup is reduced to text. Feuillets owns the user-visible fallback: it rejects unusable or error-bearing results and preserves raw citation syntax.
+Fatal validation, revision, bibliography-source, locale, style-parsing, and citation-processing failures return diagnostics rather than substitute citations. Rejected bibliography entries are library warnings when unused. Cited unknown, incompatible, duplicate, ambiguous-crossref or cyclic references produce errors tied to their requested cluster and key; the whole affected cluster is omitted. Compatible Feuillets hosts accept those partial results while rejecting all global errors and unexplained missing clusters. Warning diagnostics can accompany usable output, for example when unsupported citeproc markup is reduced to text. Feuillets owns the user-visible raw-syntax fallback.
 
 ## Lifecycle and provider registration
 
@@ -95,6 +95,6 @@ Internal `dispose()` releases all document sessions and the shared bibliography 
 
 The plugin registers immediately when a compatible Feuillets citation API is available, retries when Obsidian's layout is ready, and checks every four seconds for a missing or replaced registry. Registration is idempotent. Reconnecting after a Feuillets reload retains the companion's engine sessions until explicitly disposed. Unload unregisters the provider only if the current registry still holds that instance, then disposes the companion's resources even if another provider has replaced it.
 
-Compatibility discovery checks API v2 and the registry methods, rather than the host plugin's version string. The public compatibility target is Feuillets 3.4.0 or later.
+Compatibility discovery checks API v2 and the registry methods, rather than the host plugin's version string. API discovery is available from Feuillets 3.4.0, but partial rendering with new recoverable diagnostics requires the host fix described in the [compatibility matrix](compatibility.md). Published Feuillets 3.5.2 accepts `UNKNOWN_CITEKEY` only; it rejects the new cited-entry diagnostics for the complete document.
 
 See [the TypeScript contract](../src/engine-contract.ts) for exported types and [third-party notices](../THIRD_PARTY_NOTICES.md) for dependency and locale provenance.

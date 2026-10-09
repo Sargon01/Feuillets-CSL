@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: feuillets-csl
+    env:
+      FEUILLETS_HOST_REF: ${{ vars.FEUILLETS_HOST_REF }}
+      FEUILLETS_CSL_SOURCE: ${{ github.workspace }}/feuillets-csl
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          path: feuillets-csl
+
+      - name: Require an explicit Feuillets revision
+        run: |
+          if [[ ! "$FEUILLETS_HOST_REF" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Set repository variable FEUILLETS_HOST_REF to a reviewed, remotely available Feuillets commit SHA." >&2
+            exit 1
+          fi
+
+      - name: Checkout pinned Feuillets
+        uses: actions/checkout@v4
+        with:
+          repository: Sargon01/Feuillets
+          ref: ${{ env.FEUILLETS_HOST_REF }}
+          path: feuillets
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            feuillets-csl/package-lock.json
+            feuillets/package-lock.json
+
+      - name: Install dependencies separately
+        run: |
+          npm ci
+          npm ci --prefix ../feuillets
+
+      - name: Install Playwright Chromium
+        working-directory: feuillets
+        run: npx playwright install --with-deps chromium
+
+      - name: Type-check and lint
+        run: |
+          npm run typecheck
+          npm run lint
+          npm run lint:obsidian
+
+      - name: Run tests
+        run: npm test
+
+      - name: Require real Feuillets integration
+        working-directory: feuillets
+        run: npm run test:csl-integration
+
+      - name: Build plugin
+        run: npm run build

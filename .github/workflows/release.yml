@@ -14,19 +14,52 @@ jobs:
   build:
     name: Build & Release
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: feuillets-csl
+    env:
+      FEUILLETS_HOST_REF: ${{ vars.FEUILLETS_HOST_REF }}
+      FEUILLETS_CSL_SOURCE: ${{ github.workspace }}/feuillets-csl
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          path: feuillets-csl
+
+      - name: Require an explicit Feuillets revision
+        run: |
+          if [[ ! "$FEUILLETS_HOST_REF" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Set repository variable FEUILLETS_HOST_REF to a reviewed, remotely available Feuillets commit SHA." >&2
+            exit 1
+          fi
+
+      - name: Checkout pinned Feuillets
+        uses: actions/checkout@v4
+        with:
+          repository: Sargon01/Feuillets
+          ref: ${{ env.FEUILLETS_HOST_REF }}
+          path: feuillets
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: 'npm'
+          cache-dependency-path: |
+            feuillets-csl/package-lock.json
+            feuillets/package-lock.json
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Install Feuillets dependencies separately
+        run: npm ci --prefix ../feuillets
+
+      - name: Install Playwright Chromium
+        working-directory: feuillets
+        run: npx playwright install --with-deps chromium
 
       - name: Verify release metadata
         run: |
@@ -61,6 +94,28 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Require real Feuillets integration
+        working-directory: feuillets
+        run: npm run test:csl-integration
+
+      - name: Require the pinned Feuillets release to be publicly available
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          FEUILLETS_HOST_VERSION=$(node -p "require('../feuillets/manifest.json').version")
+          FEUILLETS_HOST_TAG=$(gh release view "$FEUILLETS_HOST_VERSION" --repo Sargon01/Feuillets \
+            --json tagName,isDraft,isPrerelease --jq 'select(.isDraft == false and .isPrerelease == false) | .tagName' 2>/dev/null \
+            || gh release view "v$FEUILLETS_HOST_VERSION" --repo Sargon01/Feuillets \
+            --json tagName,isDraft,isPrerelease --jq 'select(.isDraft == false and .isPrerelease == false) | .tagName')
+          test -n "$FEUILLETS_HOST_TAG"
+          FEUILLETS_HOST_RELEASE_COMMIT=$(git ls-remote https://github.com/Sargon01/Feuillets.git \
+            "refs/tags/$FEUILLETS_HOST_TAG" "refs/tags/$FEUILLETS_HOST_TAG^{}" \
+            | awk '/\^\{\}$/ {peeled=$1} !/\^\{\}$/ {direct=$1} END {print peeled ? peeled : direct}')
+          if [[ "$FEUILLETS_HOST_RELEASE_COMMIT" != "$FEUILLETS_HOST_REF" ]]; then
+            echo "FEUILLETS_HOST_REF must identify the publicly released Feuillets commit, not an unreleased development build." >&2
+            exit 1
+          fi
+
       - name: Build plugin
         run: npm run build
 
@@ -68,15 +123,15 @@ jobs:
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
-            main.js
-            manifest.json
+            feuillets-csl/main.js
+            feuillets-csl/manifest.json
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            main.js
-            manifest.json
+            feuillets-csl/main.js
+            feuillets-csl/manifest.json
           draft: false
           prerelease: false
           generate_release_notes: true
