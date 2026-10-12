@@ -1,5 +1,19 @@
 # Changelog — Feuillets CSL
 
+## 0.1.5 — 2026-10-12
+
+### Fixed
+
+- Corrected conversion of astronomical BibLaTeX years to historical CSL years for publication and original dates: year zero becomes 1 BC, and negative years retain the correct historical year and era.
+- Preserved month and day components for supported signed dates and rejected malformed or unsupported negative date forms without inventing a date.
+- Original dates (`origdate`) now inherit through `crossref` across bibliography files, consistently with entries parsed together in one file.
+- Local fields take priority over inherited original dates, including explicit unparseable values; the nearest ancestor and entry-type inheritance rules remain aligned with the BibLaTeX parser.
+- Added regression coverage for astronomical dates, year zero, original-date inheritance and edge cases, including real CSL rendering and Chicago notes and bibliography.
+
+### Compatibility
+
+- No public API changes or new dependencies. Existing BibLaTeX parsing and CSL rendering engines are retained.
+
 ## 0.1.4 — 2026-10-10
 
 ### Improved
