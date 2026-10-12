@@ -107,6 +107,14 @@ const BIBTEX_TYPE_TO_CSL: Readonly<Record<string, string>> = {
   legislation: "legislation",
 };
 
+// These legacy aliases are accepted by the adapter but have no crossref field
+// inheritance in bibtex-parser 11.0.0. Keep original-date inheritance aligned
+// with the parser rather than extending it to every CSL-mappable entry type.
+const ORIGINAL_DATE_INHERITING_TYPES = new Set(
+  Object.keys(BIBTEX_TYPE_TO_CSL).filter((type) =>
+    !["conference", "phdthesis", "mastersthesis", "techreport", "www"].includes(type))
+);
+
 const MONTH_NAMES: Readonly<Record<string, number>> = {
   jan: 1,
   january: 1,
@@ -375,7 +383,16 @@ function convertEntryToCsl(
     item.issued = { "date-parts": issuedParts };
   }
 
-  const origdateParts = parseDateParts(fields.origdate);
+  // Respect explicit values (including unparseable dates) and stop at an
+  // ancestor whose type does not inherit this field, as the parser does.
+  let origdateParts: number[][] | undefined;
+  for (const current of [entry, ...parentChain]) {
+    if (current.fields.origdate) {
+      origdateParts = parseDateParts(current.fields.origdate);
+      break;
+    }
+    if (!ORIGINAL_DATE_INHERITING_TYPES.has(current.type.toLowerCase())) break;
+  }
   if (origdateParts) {
     item["original-date"] = { "date-parts": origdateParts };
   }

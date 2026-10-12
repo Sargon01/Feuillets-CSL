@@ -346,9 +346,7 @@ describe("Historical BibLaTeX dates", () => {
       assert.deepEqual(adapted.diagnostics, []);
       for (const key of ["parent", "child"]) {
         assert.deepEqual(adapted.items.get(key)?.issued, { "date-parts": [[-336, 6, 23]] });
-        if (!separate || key === "parent") {
-          assert.deepEqual(adapted.items.get(key)?.["original-date"], { "date-parts": [[-335, 6, 23]] });
-        }
+        assert.deepEqual(adapted.items.get(key)?.["original-date"], { "date-parts": [[-335, 6, 23]] });
       }
     });
   }
