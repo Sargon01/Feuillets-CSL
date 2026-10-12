@@ -148,6 +148,12 @@ function parseMonth(monthVal: unknown): number | undefined {
   return undefined;
 }
 
+// BibLaTeX uses astronomical years (0 = 1 BC); citeproc-ts uses historical
+// signed years (-1 = 1 BC), so nonpositive years must shift by one.
+function toCslYear(year: number): number {
+  return year > 0 ? year : year - 1;
+}
+
 function parseDateParts(
   dateStr?: unknown,
   yearStr?: unknown,
@@ -155,9 +161,15 @@ function parseDateParts(
 ): number[][] | undefined {
   if (typeof dateStr === "string") {
     const trimmed = dateStr.trim();
-    const match = /^(\d{4})(?:-(\d{1,2})(?:-(\d{1,2}))?)?/.exec(trimmed);
-    if (match) {
-      const year = parseInt(match[1], 10);
+    const pattern = trimmed.startsWith("-")
+      ? /^(-\d{1,4})(?:-(\d{1,2})(?:-(\d{1,2}))?)?$/
+      : /^(\d{4})(?:-(\d{1,2})(?:-(\d{1,2}))?)?/;
+    const match = pattern.exec(trimmed);
+    const validSignedParts = match &&
+      (!match[2] || (Number(match[2]) >= 1 && Number(match[2]) <= 12)) &&
+      (!match[3] || (Number(match[3]) >= 1 && Number(match[3]) <= 31));
+    if (match && (!trimmed.startsWith("-") || validSignedParts)) {
+      const year = toCslYear(parseInt(match[1], 10));
       if (match[3]) {
         const month = parseInt(match[2], 10);
         const day = parseInt(match[3], 10);
@@ -177,9 +189,10 @@ function parseDateParts(
       : undefined;
 
   if (rawYear) {
-    const matchYear = /^(\d{4})/.exec(rawYear);
+    // The parser normalizes integer year fields, removing leading zeroes.
+    const matchYear = (rawYear.startsWith("-") ? /^(-\d{1,4})$/ : /^(\d{4}|\d{1,3}$)/).exec(rawYear);
     if (matchYear) {
-      const year = parseInt(matchYear[1], 10);
+      const year = toCslYear(parseInt(matchYear[1], 10));
       const parsedM = parseMonth(monthStr);
       if (parsedM !== undefined) {
         return [[year, parsedM]];

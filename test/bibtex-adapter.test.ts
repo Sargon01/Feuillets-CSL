@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { parse } from "@retorquere/bibtex-parser";
 
 import { adaptBibliographies } from "../src/bibtex-adapter.ts";
 import type { CitationBibliographySource } from "../src/engine-contract.ts";
@@ -271,4 +272,102 @@ describe("BibTeX Adapter", () => {
     // Duplicate item is removed to prevent silent first-wins or last-wins resolution
     assert.equal(result.items.has("dup_key"), false);
   });
+});
+
+
+describe("Historical BibLaTeX dates", () => {
+  for (const [field, value, parserValue, expected] of [
+    ["date", "1936", "1936", [[1936]]],
+    ["origdate", "1936", "1936", [[1936]]],
+    ["date", "0001", "0001", [[1]]],
+    ["date", "0000", "0000", [[-1]]],
+    ["date", "-0001", "-0001", [[-2]]],
+    ["date", "-0334", "-0334", [[-335]]],
+    ["date", "-0335", "-0335", [[-336]]],
+    ["origdate", "-0335", "-0335", [[-336]]],
+    ["origdate", "-0334", "-0334", [[-335]]],
+    ["origdate", "0000", "0000", [[-1]]],
+    ["origdate", "-0001", "-0001", [[-2]]],
+    ["date", "-0335-06", "-0335-06", [[-336, 6]]],
+    ["origdate", "-0335-06-23", "-0335-06-23", [[-336, 6, 23]]],
+    ["date", "0000-06-23", "0000-06-23", [[-1, 6, 23]]],
+    ["date", "2024-02-03", "2024-02-03", [[2024, 2, 3]]],
+    ["year", "1936", "1936", [[1936]]],
+    ["year", "0001", "1", [[1]]],
+    ["year", "0000", "0", [[-1]]],
+    ["year", "-0001", "-1", [[-2]]],
+    ["year", "-0334", "-334", [[-335]]],
+    ["year", "-0335", "-335", [[-336]]],
+    ["date", "-335", "-335", [[-336]]],
+    ["origdate", "-335", "-335", [[-336]]],
+    ["year", "-335", "-335", [[-336]]],
+    ["date", "-335-06-23", "-335-06-23", [[-336, 6, 23]]],
+  ] as const) {
+    it(`preserves the parser's ${field}={${value}} and converts its astronomical year`, () => {
+      const content = `@book{historical,title={Ancient Work},${field}={${value}}}`;
+      const parsed = parse(content, { applyCrossRef: true, sentenceCase: false });
+      assert.deepEqual(parsed.errors, []);
+      assert.equal(parsed.entries[0].fields[field], parserValue);
+      const adapted = adaptBibliographies([createBibSource(content)]);
+      assert.deepEqual(adapted.diagnostics, []);
+      const item = adapted.items.get("historical");
+      assert.ok(item);
+      assert.deepEqual(item[field === "origdate" ? "original-date" : "issued"]?.["date-parts"], expected);
+    });
+  }
+
+  for (const [fields, expected] of [
+    ["year={-0335},month=jun", [[-336, 6]]],
+    ["date={unknown},year={-0335},month={6}", [[-336, 6]]],
+    ["year={1936},month=mar", [[1936, 3]]],
+    ["date={-0335-13},year={1936},month=mar", [[1936, 3]]],
+  ] as const) {
+    it(`preserves year/month fallback for ${fields}`, () => {
+      const adapted = adaptBibliographies([createBibSource(`@book{fallback,title={Work},${fields}}`)]);
+      assert.deepEqual(adapted.diagnostics, []);
+      assert.deepEqual(adapted.items.get("fallback")?.issued?.["date-parts"], expected);
+    });
+  }
+
+  it("keeps an ancient original date independent of a modern publication date", () => {
+    const adapted = adaptBibliographies([createBibSource("@book{edition,title={Modern Edition},origdate={-0334},date={1936}}")]);
+    assert.deepEqual(adapted.diagnostics, []);
+    assert.deepEqual(adapted.items.get("edition")?.issued, { "date-parts": [[1936]] });
+    assert.deepEqual(adapted.items.get("edition")?.["original-date"], { "date-parts": [[-335]] });
+  });
+
+  for (const separate of [false, true]) {
+    it(`converts crossref-inherited dates once ${separate ? "across files" : "within a file"}`, () => {
+      const parent = "@book{parent,title={Ancient Parent},date={-0335-06-23},origdate={-0334-06-23}}";
+      const child = "@incollection{child,title={Chapter},crossref={parent}}";
+      const sources = separate ? [createBibSource(child, "child"), createBibSource(parent, "parent")]
+        : [createBibSource(parent + "\n" + child)];
+      const adapted = adaptBibliographies(sources);
+      assert.deepEqual(adapted.diagnostics, []);
+      for (const key of ["parent", "child"]) {
+        assert.deepEqual(adapted.items.get(key)?.issued, { "date-parts": [[-336, 6, 23]] });
+        if (!separate || key === "parent") {
+          assert.deepEqual(adapted.items.get(key)?.["original-date"], { "date-parts": [[-335, 6, 23]] });
+        }
+      }
+    });
+  }
+
+  it("leaves modern dates and independent bibliographic metadata unchanged", () => {
+    const adapted = adaptBibliographies([createBibSource(`@book{modern,title={Modern Study},author={Example, Alice},
+      date={2024-02-03},origdate={1936-06-23},publisher={Example Press},doi={10.0000/example}}`)]);
+    assert.deepEqual(adapted.diagnostics, []);
+    assert.deepEqual(adapted.items.get("modern"), { id: "modern", type: "book", title: "Modern Study",
+      author: [{ family: "Example", given: "Alice" }], issued: { "date-parts": [[2024, 2, 3]] },
+      "original-date": { "date-parts": [[1936, 6, 23]] }, publisher: "Example Press", DOI: "10.0000/example" });
+  });
+
+  for (const value of ["-0335/-0334", "-0335?", "-0335-21", "-0335-13", "-0335-06-32"]) {
+    it(`does not extend signed date support to ${value}`, () => {
+      const item = adaptBibliographies([createBibSource(`@book{unsupported,title={Work},date={${value}},origdate={${value}}}`)]).items.get("unsupported");
+      assert.ok(item);
+      assert.equal(item.issued, undefined);
+      assert.equal(item["original-date"], undefined);
+    });
+  }
 });
